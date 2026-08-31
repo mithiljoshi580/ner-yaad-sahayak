@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "603480668419",
+    "project_id": "yaad-sahayak-ner",
+    "storage_bucket": "yaad-sahayak-ner.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:603480668419:android:ddaa7b92a037953fae5136",
+        "android_client_info": {
+          "package_name": "com.example.yaad_sahayak"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnAXkeBILZIf7Z5v5iRtdY7WwahlO0vBc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
