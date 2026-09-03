@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+import 'firebase_options.dart';
+import 'services/auth_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   runApp(const YaadSahayakApp());
 }
 
@@ -29,18 +37,44 @@ class HomeScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             SizedBox(
-              width: 250, height: 70,
-              child: ElevatedButton(onPressed: () {}, child: const Text('Family Mode', style: TextStyle(fontSize: 22))),
+              width: 250,
+              height: 70,
+              child: ElevatedButton(
+                onPressed: () {},
+                child: const Text(
+                  'Family Mode',
+                  style: TextStyle(fontSize: 22),
+                ),
+              ),
             ),
             const SizedBox(height: 20),
             SizedBox(
-              width: 250, height: 70,
-              child: ElevatedButton(onPressed: () {}, child: const Text('Games', style: TextStyle(fontSize: 22))),
+              width: 250,
+              height: 70,
+              child: ElevatedButton(
+                onPressed: () {},
+                child: const Text('Games', style: TextStyle(fontSize: 22)),
+              ),
             ),
             const SizedBox(height: 20),
             SizedBox(
-              width: 250, height: 70,
-              child: ElevatedButton(onPressed: () {}, child: const Text('Progress', style: TextStyle(fontSize: 22))),
+              width: 250,
+              height: 70,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final authService = AuthService();
+
+                  final user = await authService.signUp(
+                    'test@test.com',
+                    '123456',
+                    'Test User',
+                  );
+
+                  print('Created user: ${user?.uid}');
+                },
+
+                child: const Text('Progress', style: TextStyle(fontSize: 22)),
+              ),
             ),
           ],
         ),
