@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'game_detail_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -77,6 +78,7 @@ class HomeScreen extends StatelessWidget {
             Expanded(
               child: GridView.builder(
                 itemCount: games.length,
+
                 gridDelegate:
                     const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
@@ -84,56 +86,79 @@ class HomeScreen extends StatelessWidget {
                   mainAxisSpacing: 16,
                   childAspectRatio: 0.82,
                 ),
+
                 itemBuilder: (context, index) {
                   final game = games[index];
 
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: game['color'],
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            game['icon'],
-                            color: Colors.white,
-                            size: 55,
+                  return GestureDetector(
+                    onTap: () {
+                      if (game['name'] == 'Coming Soon') {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Coming Soon!'),
+                            duration: Duration(seconds: 2),
                           ),
-
-                          const SizedBox(height: 18),
-
-                          Text(
-                            game['name'],
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => GameDetailScreen(
+                              gameName: game['name'],
                             ),
                           ),
+                        );
+                      }
+                    },
 
-                          const SizedBox(height: 8),
-
-                          Text(
-                            game['subtitle'],
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13,
-                            ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: game['color'],
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 5),
                           ),
                         ],
+                      ),
+
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              game['icon'],
+                              color: Colors.white,
+                              size: 55,
+                            ),
+
+                            const SizedBox(height: 18),
+
+                            Text(
+                              game['name'],
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+
+                            const SizedBox(height: 8),
+
+                            Text(
+                              game['subtitle'],
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
