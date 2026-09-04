@@ -27,7 +27,6 @@ class WelcomeScreen extends StatelessWidget {
               children: [
                 const Spacer(),
 
-                // Game Icon
                 Container(
                   height: 120,
                   width: 120,
@@ -44,7 +43,6 @@ class WelcomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 30),
 
-                // Title
                 const Text(
                   'NE Games',
                   style: TextStyle(
@@ -56,7 +54,6 @@ class WelcomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 15),
 
-                // Tagline
                 const Text(
                   'Explore Traditional Games\nof North-East India',
                   textAlign: TextAlign.center,
@@ -69,19 +66,10 @@ class WelcomeScreen extends StatelessWidget {
 
                 const Spacer(),
 
-                // Get Started Button
                 SizedBox(
                   width: double.infinity,
                   height: 58,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF3949AB),
-                      elevation: 8,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -90,13 +78,7 @@ class WelcomeScreen extends StatelessWidget {
                         ),
                       );
                     },
-                    child: const Text(
-                      'Get Started  →',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: const Text('Get Started →'),
                   ),
                 ),
 
