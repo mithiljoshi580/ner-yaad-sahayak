@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'quiz_screen.dart';
 
 class GameDetailScreen extends StatelessWidget {
   final String gameName;
@@ -160,7 +161,16 @@ class GameDetailScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 60,
                 child: ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => QuizScreen(
+                          gameName: gameName,
+                        ), 
+                      ),
+                    );
+                  },
                   icon: const Icon(Icons.play_arrow_rounded),
                   label: const Text(
                     'PLAY QUIZ',

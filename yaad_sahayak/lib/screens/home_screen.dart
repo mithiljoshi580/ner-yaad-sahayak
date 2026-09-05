@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'game_detail_screen.dart';
+import 'family_list_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -40,6 +41,7 @@ class HomeScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF10152F),
         elevation: 0,
         centerTitle: true,
+
         title: const Text(
           'NE Games',
           style: TextStyle(
@@ -47,6 +49,31 @@ class HomeScreen extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
+
+        // MY FAMILY BUTTON
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              tooltip: 'My Family',
+              icon: const Icon(
+                Icons.family_restroom_rounded,
+                color: Colors.white,
+                size: 27,
+              ),
+
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        const FamilyListScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
 
       body: Padding(
