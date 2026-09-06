@@ -1,18 +1,19 @@
 import 'dart:io';
-import 'dart:ui';
-
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 import '../services/face_recognition_service.dart';
+import 'add_family_member_screen.dart';
 
 class FaceDetectScreen extends StatefulWidget {
   final bool verifyMode;
+  final String? memberId;
 
   const FaceDetectScreen({
     super.key,
     this.verifyMode = false,
+    this.memberId,
   });
 
   @override
@@ -21,14 +22,13 @@ class FaceDetectScreen extends StatefulWidget {
 
 class _FaceDetectScreenState extends State<FaceDetectScreen> {
   CameraController? _cameraController;
+
   late FaceDetector _faceDetector;
 
   final FaceRecognitionService _faceRecognitionService =
       FaceRecognitionService();
 
   bool _isDetecting = false;
-  bool _isProcessingButton = false;
-
   List<Face> _faces = [];
 
   @override
@@ -45,14 +45,19 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
     _initializeCamera();
   }
 
-  // ================= CAMERA INITIALIZATION =================
+  // ------------------------------------------------------------
+  // CAMERA INITIALIZATION
+  // ------------------------------------------------------------
 
   Future<void> _initializeCamera() async {
     try {
       final cameras = await availableCameras();
 
       if (cameras.isEmpty) {
-        debugPrint('No camera found');
+        _showMessage(
+          'No camera found',
+          Colors.red,
+        );
         return;
       }
 
@@ -85,18 +90,18 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
 
       if (mounted) {
         _showMessage(
-          'Camera Error: $e',
+          'Camera error',
           Colors.red,
         );
       }
     }
   }
 
-  // ================= FACE DETECTION =================
+  // ------------------------------------------------------------
+  // FACE DETECTION
+  // ------------------------------------------------------------
 
-  Future<void> _processCameraImage(
-    CameraImage image,
-  ) async {
+  Future<void> _processCameraImage(CameraImage image) async {
     if (_isDetecting) return;
 
     _isDetecting = true;
@@ -107,7 +112,9 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
 
       if (inputImage != null) {
         final faces =
-            await _faceDetector.processImage(inputImage);
+            await _faceDetector.processImage(
+          inputImage,
+        );
 
         if (mounted) {
           setState(() {
@@ -116,18 +123,23 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Detection error: $e');
+      debugPrint(
+        'Detection error: $e',
+      );
     } finally {
       _isDetecting = false;
     }
   }
 
-  // ================= CONVERT CAMERA IMAGE =================
+  // ------------------------------------------------------------
+  // CONVERT CAMERA IMAGE
+  // ------------------------------------------------------------
 
   InputImage? _inputImageFromCameraImage(
     CameraImage image,
   ) {
-    final camera = _cameraController?.description;
+    final camera =
+        _cameraController?.description;
 
     if (camera == null) return null;
 
@@ -162,7 +174,9 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
     );
   }
 
-  // ================= CREATE FACE DATA =================
+  // ------------------------------------------------------------
+  // DEMO FACE EMBEDDING
+  // ------------------------------------------------------------
 
   List<double> _getCurrentFaceEmbedding() {
     if (_faces.isEmpty) {
@@ -172,157 +186,454 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
     final face = _faces.first;
     final box = face.boundingBox;
 
-    // Normalize face position and size.
-    // This is still a demo embedding, not real biometric recognition.
-
-    final cameraSize =
-        _cameraController?.value.previewSize;
-
-    if (cameraSize == null) {
-      return [];
-    }
-
-    final imageWidth = cameraSize.height;
-    final imageHeight = cameraSize.width;
-
     return [
-      box.left / imageWidth,
-      box.top / imageHeight,
-      box.width / imageWidth,
-      box.height / imageHeight,
+      box.left,
+      box.top,
+      box.width,
+      box.height,
     ];
   }
 
-  // ================= SAVE FACE =================
+  // ------------------------------------------------------------
+  // SAVE FACE - DAY 2
+  // ------------------------------------------------------------
 
   Future<void> _saveFace() async {
-    if (_isProcessingButton) return;
-
     if (_faces.isEmpty) {
       _showMessage(
-        'Please show your face clearly',
+        'No Face Detected',
         Colors.red,
       );
       return;
     }
 
-    setState(() {
-      _isProcessingButton = true;
-    });
+    final embedding =
+        _getCurrentFaceEmbedding();
 
     try {
-      final embedding =
-          _getCurrentFaceEmbedding();
-
-      if (embedding.isEmpty) {
-        _showMessage(
-          'Unable to read face',
-          Colors.red,
-        );
-        return;
-      }
-
-      await _faceRecognitionService
-          .saveFace(embedding);
+      await _faceRecognitionService.saveFace(
+        embedding,
+      );
 
       _showMessage(
-        'Face Saved Successfully!',
+        'Face Saved Successfully',
         Colors.green,
       );
     } catch (e) {
+      debugPrint(
+        'Save face error: $e',
+      );
+
       _showMessage(
-        'Error saving face',
+        'Unable to save face',
         Colors.red,
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessingButton = false;
-        });
-      }
     }
   }
 
-  // ================= VERIFY FACE =================
+  // ------------------------------------------------------------
+  // VERIFY / LINK FACE - DAY 3
+  // ------------------------------------------------------------
 
   Future<void> _verifyFace() async {
-    if (_isProcessingButton) return;
-
     if (_faces.isEmpty) {
       _showMessage(
-        'Please show your face clearly',
+        'No Face Detected',
         Colors.red,
       );
       return;
     }
 
-    setState(() {
-      _isProcessingButton = true;
-    });
+    final embedding =
+        _getCurrentFaceEmbedding();
+
+    if (embedding.isEmpty) {
+      _showMessage(
+        'Unable to detect face',
+        Colors.red,
+      );
+      return;
+    }
 
     try {
-      final embedding =
-          _getCurrentFaceEmbedding();
+      // --------------------------------------------------------
+      // CASE 1:
+      // VERIFY FACE FOR EXISTING FAMILY MEMBER
+      // --------------------------------------------------------
 
-      if (embedding.isEmpty) {
-        _showMessage(
-          'Unable to read face',
-          Colors.red,
+      if (widget.memberId != null &&
+          widget.memberId!.isNotEmpty) {
+        await _faceRecognitionService
+            .saveFaceForFamilyMember(
+          widget.memberId!,
+          embedding,
         );
-        return;
-      }
 
-      final savedFace =
-          await _faceRecognitionService.getSavedFace();
+        if (!mounted) return;
 
-      if (savedFace == null) {
         _showMessage(
-          'No saved face found. Please save your face first.',
-          Colors.orange,
-        );
-        return;
-      }
-
-      final isVerified =
-          await _faceRecognitionService
-              .recognizeFace(embedding);
-
-      if (isVerified) {
-        _showMessage(
-          'Face Verified Successfully! ✓',
+          'Face linked with family member',
           Colors.green,
         );
 
         await Future.delayed(
-          const Duration(seconds: 1),
+          const Duration(milliseconds: 800),
         );
 
         if (mounted) {
           Navigator.pop(context, true);
         }
-      } else {
-        _showMessage(
-          'Face Not Matched. Try again.',
-          Colors.red,
+
+        return;
+      }
+
+      // --------------------------------------------------------
+      // CASE 2:
+      // AUTO IDENTIFY FAMILY MEMBER
+      // --------------------------------------------------------
+
+      final matchedMemberId =
+          await _faceRecognitionService
+              .identifyFamilyMember(
+        embedding,
+      );
+
+      if (!mounted) return;
+
+      if (matchedMemberId != null) {
+        await _showMatchedFamilyMember(
+          matchedMemberId,
         );
+      } else {
+        _showAddNewFamilyMemberDialog();
       }
     } catch (e) {
-      debugPrint('Verification error: $e');
+      debugPrint(
+        'Face verification error: $e',
+      );
+
+      if (!mounted) return;
 
       _showMessage(
-        'Verification error',
+        'Face verification failed',
         Colors.red,
       );
-    } finally {
+    }
+  }
+
+  // ------------------------------------------------------------
+  // SHOW MATCHED FAMILY MEMBER
+  // ------------------------------------------------------------
+
+  Future<void> _showMatchedFamilyMember(
+    String memberId,
+  ) async {
+    try {
+      final user =
+          _faceRecognitionService.currentUser;
+
+      if (user == null) {
+        _showMessage(
+          'User not logged in',
+          Colors.red,
+        );
+        return;
+      }
+
+      final members =
+          await _faceRecognitionService
+              .getAllSavedFaces(
+        user.uid,
+      );
+
+      Map<String, dynamic>? matchedMember;
+
+      for (final member in members) {
+        if (member['memberId'] == memberId) {
+          matchedMember = member;
+          break;
+        }
+      }
+
+      if (!mounted) return;
+
+      if (matchedMember == null) {
+        _showMessage(
+          'Family member found but details unavailable',
+          Colors.orange,
+        );
+        return;
+      }
+
+      final name =
+          matchedMember['name']?.toString() ??
+              'Family Member';
+
+      final relation =
+          matchedMember['relation']?.toString() ??
+              'Family';
+
+      final image =
+          matchedMember['image']?.toString() ??
+              matchedMember['photo']?.toString() ??
+              '';
+
+      final voiceNote =
+          matchedMember['voiceNote']?.toString() ??
+              matchedMember['voiceNoteUrl']
+                  ?.toString() ??
+              '';
+
+      await showModalBottomSheet(
+        context: context,
+        backgroundColor:
+            const Color(0xFF181A2E),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(28),
+          ),
+        ),
+        builder: (context) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 45,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.white30,
+                      borderRadius:
+                          BorderRadius.circular(10),
+                    ),
+                  ),
+
+                  const SizedBox(height: 22),
+
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor:
+                        Colors.white12,
+                    backgroundImage:
+                        image.isNotEmpty
+                            ? NetworkImage(image)
+                            : null,
+                    child: image.isEmpty
+                        ? const Icon(
+                            Icons.person,
+                            color: Colors.white70,
+                            size: 55,
+                          )
+                        : null,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Text(
+                    name,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  Text(
+                    relation,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 17,
+                    ),
+                  ),
+
+                  const SizedBox(height: 22),
+
+                  Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color:
+                          const Color(0xFF242844),
+                      borderRadius:
+                          BorderRadius.circular(18),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.verified,
+                          color: Colors.greenAccent,
+                          size: 30,
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Family member recognized',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight:
+                                  FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  if (voiceNote.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(
+                          Icons.volume_up,
+                        ),
+                        label: const Text(
+                          'Play Voice Note',
+                        ),
+                        onPressed: () {
+                          // Voice playback can be connected
+                          // through VoiceService here.
+                        },
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 18),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      style:
+                          ElevatedButton.styleFrom(
+                        backgroundColor:
+                            const Color(
+                          0xFF6C3FC5,
+                        ),
+                        foregroundColor:
+                            Colors.white,
+                        shape:
+                            RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(
+                            15,
+                          ),
+                        ),
+                      ),
+                      child: const Text(
+                        'Done',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight:
+                              FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint(
+        'Member details error: $e',
+      );
+
       if (mounted) {
-        setState(() {
-          _isProcessingButton = false;
-        });
+        _showMessage(
+          'Unable to load family details',
+          Colors.red,
+        );
       }
     }
   }
 
-  // ================= MESSAGE =================
+  // ------------------------------------------------------------
+  // ADD NEW FAMILY MEMBER DIALOG
+  // ------------------------------------------------------------
+
+  void _showAddNewFamilyMemberDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor:
+              const Color(0xFF242844),
+          shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'Face Not Matched',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: const Text(
+            'This face is not linked with any family member.\n\n'
+            'Do you want to add this person as a new family member?',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 15,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.white70,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AddFamilyMemberScreen(),
+                  ),
+                );
+              },
+              style:
+                  ElevatedButton.styleFrom(
+                backgroundColor:
+                    const Color(0xFF6C3FC5),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text(
+                'Add Member',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ------------------------------------------------------------
+  // MESSAGE
+  // ------------------------------------------------------------
 
   void _showMessage(
     String message,
@@ -331,34 +642,40 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
-        .hideCurrentSnackBar();
-
-    ScaffoldMessenger.of(context).showSnackBar(
+        .showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
+        duration:
+            const Duration(seconds: 2),
       ),
     );
   }
 
-  // ================= DISPOSE =================
+  // ------------------------------------------------------------
+  // DISPOSE
+  // ------------------------------------------------------------
 
   @override
   void dispose() {
     _cameraController?.dispose();
     _faceDetector.close();
-
     super.dispose();
   }
 
-  // ================= UI =================
+  // ------------------------------------------------------------
+  // UI
+  // ------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     if (_cameraController == null ||
-        !_cameraController!.value.isInitialized) {
+        !_cameraController!
+            .value
+            .isInitialized) {
       return const Scaffold(
+        backgroundColor:
+            Color(0xFF10152F),
         body: Center(
           child: CircularProgressIndicator(),
         ),
@@ -366,19 +683,28 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
     }
 
     return Scaffold(
+      backgroundColor:
+          const Color(0xFF10152F),
+
       appBar: AppBar(
+        backgroundColor:
+            const Color(0xFF10152F),
+        elevation: 0,
         title: Text(
-          widget.verifyMode
-              ? 'Verify Face'
-              : 'Face Registration',
+          widget.memberId != null
+              ? 'Link Family Face'
+              : widget.verifyMode
+                  ? 'Verify Face'
+                  : 'Face Detection',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        centerTitle: true,
       ),
 
       body: Column(
         children: [
-          // CAMERA SECTION
-
           Expanded(
             child: Stack(
               fit: StackFit.expand,
@@ -409,20 +735,30 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
                   right: 20,
                   child: Container(
                     padding:
-                        const EdgeInsets.all(12),
+                        const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.black54,
+                      color:
+                          Colors.black54,
                       borderRadius:
-                          BorderRadius.circular(12),
+                          BorderRadius.circular(
+                        14,
+                      ),
                     ),
                     child: Text(
                       _faces.isEmpty
-                          ? 'No face detected'
-                          : 'Face detected ✓',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
+                          ? 'Look at the camera'
+                          : '${_faces.length} face detected',
+                      textAlign:
+                          TextAlign.center,
+                      style:
+                          const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
+                        fontWeight:
+                            FontWeight.w600,
                       ),
                     ),
                   ),
@@ -431,63 +767,60 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
             ),
           ),
 
-          // BUTTON SECTION
-
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            child: Column(
+          Padding(
+            padding:
+                const EdgeInsets.all(16),
+            child: Row(
               children: [
-                if (!widget.verifyMode)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton.icon(
-                      onPressed: _isProcessingButton
-                          ? null
-                          : _saveFace,
-                      icon: const Icon(
-                        Icons.save,
-                      ),
-                      label: const Text(
-                        'Save My Face',
-                        style: TextStyle(
-                          fontSize: 17,
+                if (!widget.verifyMode &&
+                    widget.memberId == null) ...[
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _saveFace,
+                      style:
+                          ElevatedButton.styleFrom(
+                        backgroundColor:
+                            const Color(
+                          0xFF2E8B57,
                         ),
+                        foregroundColor:
+                            Colors.white,
+                        minimumSize:
+                            const Size(
+                          0,
+                          52,
+                        ),
+                      ),
+                      child: const Text(
+                        'Save Face',
                       ),
                     ),
                   ),
 
-                if (!widget.verifyMode)
-                  const SizedBox(height: 12),
+                  const SizedBox(width: 12),
+                ],
 
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton.icon(
-                    onPressed: _isProcessingButton
-                        ? null
-                        : _verifyFace,
-                    icon: _isProcessingButton
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child:
-                                CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(
-                            Icons.face,
-                          ),
-                    label: Text(
-                      _isProcessingButton
-                          ? 'Please wait...'
-                          : 'Verify Face',
-                      style: const TextStyle(
-                        fontSize: 17,
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _verifyFace,
+                    style:
+                        ElevatedButton.styleFrom(
+                      backgroundColor:
+                          const Color(
+                        0xFF6C3FC5,
                       ),
+                      foregroundColor:
+                          Colors.white,
+                      minimumSize:
+                          const Size(
+                        0,
+                        52,
+                      ),
+                    ),
+                    child: Text(
+                      widget.memberId != null
+                          ? 'Link Face'
+                          : 'Verify Face',
                     ),
                   ),
                 ),
@@ -500,7 +833,9 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
   }
 }
 
-// ================= FACE PAINTER =================
+// ============================================================
+// FACE PAINTER
+// ============================================================
 
 class FacePainter extends CustomPainter {
   final List<Face> faces;
@@ -530,10 +865,17 @@ class FacePainter extends CustomPainter {
       final scaleY =
           size.height / imageSize.height;
 
-      final left = rect.left * scaleX;
-      final top = rect.top * scaleY;
-      final right = rect.right * scaleX;
-      final bottom = rect.bottom * scaleY;
+      final left =
+          rect.left * scaleX;
+
+      final top =
+          rect.top * scaleY;
+
+      final right =
+          rect.right * scaleX;
+
+      final bottom =
+          rect.bottom * scaleY;
 
       canvas.drawRect(
         Rect.fromLTRB(

@@ -37,6 +37,9 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF10152F),
 
+      // =========================
+      // APP BAR
+      // =========================
       appBar: AppBar(
         backgroundColor: const Color(0xFF10152F),
         elevation: 0,
@@ -47,10 +50,13 @@ class HomeScreen extends StatelessWidget {
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
+            color: Colors.white,
           ),
         ),
 
+        // =========================
         // MY FAMILY BUTTON
+        // =========================
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -59,9 +65,8 @@ class HomeScreen extends StatelessWidget {
               icon: const Icon(
                 Icons.family_restroom_rounded,
                 color: Colors.white,
-                size: 27,
+                size: 28,
               ),
-
               onPressed: () {
                 Navigator.push(
                   context,
@@ -76,11 +81,15 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
 
+      // =========================
+      // BODY
+      // =========================
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
             const Text(
               "Let's Play & Explore 🎮",
               style: TextStyle(
@@ -102,6 +111,9 @@ class HomeScreen extends StatelessWidget {
 
             const SizedBox(height: 25),
 
+            // =========================
+            // GAME GRID
+            // =========================
             Expanded(
               child: GridView.builder(
                 itemCount: games.length,
@@ -119,29 +131,37 @@ class HomeScreen extends StatelessWidget {
 
                   return GestureDetector(
                     onTap: () {
+                      // Coming Soon
                       if (game['name'] == 'Coming Soon') {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Coming Soon!'),
+                            content: Text(
+                              'More exciting games coming soon!',
+                            ),
                             duration: Duration(seconds: 2),
                           ),
                         );
-                      } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => GameDetailScreen(
-                              gameName: game['name'],
-                            ),
-                          ),
-                        );
+                        return;
                       }
+
+                      // Open game details
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              GameDetailScreen(
+                            gameName: game['name'],
+                          ),
+                        ),
+                      );
                     },
 
                     child: Container(
                       decoration: BoxDecoration(
                         color: game['color'],
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius:
+                            BorderRadius.circular(24),
+
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.3),
@@ -153,9 +173,14 @@ class HomeScreen extends StatelessWidget {
 
                       child: Padding(
                         padding: const EdgeInsets.all(16),
+
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisAlignment:
+                              MainAxisAlignment.center,
+
                           children: [
+
+                            // GAME ICON
                             Icon(
                               game['icon'],
                               color: Colors.white,
@@ -164,6 +189,7 @@ class HomeScreen extends StatelessWidget {
 
                             const SizedBox(height: 18),
 
+                            // GAME NAME
                             Text(
                               game['name'],
                               textAlign: TextAlign.center,
@@ -176,6 +202,7 @@ class HomeScreen extends StatelessWidget {
 
                             const SizedBox(height: 8),
 
+                            // GAME SUBTITLE
                             Text(
                               game['subtitle'],
                               textAlign: TextAlign.center,

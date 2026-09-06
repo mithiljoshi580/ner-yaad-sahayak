@@ -1,56 +1,164 @@
 import 'dart:io';
-import 'package:record/record.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 class VoiceService {
-  final AudioRecorder _record = AudioRecorder();
-  final AudioPlayer _player = AudioPlayer();
+  final AudioRecorder _recorder = AudioRecorder();
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // Step 1: Recording Start
+  bool _isRecording = false;
+
+  // =========================
+  // START RECORDING
+  // =========================
   Future<void> startRecording() async {
-    if (await _record.hasPermission()) {
-      final dir = await getTemporaryDirectory();
-      String path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      
-      await _record.start(
-        const RecordConfig(),
+    try {
+      final hasPermission =
+          await _recorder.hasPermission();
+
+      if (!hasPermission) {
+        throw Exception(
+          'Microphone permission denied',
+        );
+      }
+
+      final directory =
+          await getTemporaryDirectory();
+
+      final path =
+          '${directory.path}/voice_note_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+        ),
         path: path,
       );
-      print("Recording started at $path");
+
+      _isRecording = true;
+
+      print('Recording started');
+    } catch (e) {
+      print('Recording error: $e');
     }
   }
 
-  // Step 2: Recording Stop - file ka path dega
+  // =========================
+  // STOP RECORDING
+  // =========================
   Future<String?> stopRecording() async {
-    final path = await _record.stop();
-    print("Recording stopped, file at: $path");
-    return path;
+    try {
+      if (!_isRecording) {
+        return null;
+      }
+
+      final path = await _recorder.stop();
+
+      _isRecording = false;
+
+      print('Recording stopped: $path');
+
+      return path;
+    } catch (e) {
+      print('Stop recording error: $e');
+      return null;
+    }
   }
 
-  // Step 3: Firebase Storage me Upload
-  Future<String> saveVoiceToStorage(String uid, String memberId, String filePath) async {
-    File file = File(filePath);
-    final ref = FirebaseStorage.instance
-        .ref()
-        .child('users')
-        .child(uid)
-        .child('voiceNotes')
-        .child('$memberId.m4a');
+  // =========================
+  // SAVE VOICE TO FIREBASE
+  // =========================
+  Future<String> saveVoiceToStorage(
+    String uid,
+    String memberId,
+    String filePath,
+  ) async {
+    try {
+      final file = File(filePath);
 
-    await ref.putFile(file);
-    String downloadUrl = await ref.getDownloadURL();
-    return downloadUrl;
+      if (!await file.exists()) {
+        throw Exception(
+          'Voice file does not exist',
+        );
+      }
+
+      final storageRef = FirebaseStorage
+          .instance
+          .ref()
+          .child('users')
+          .child(uid)
+          .child('familyMembers')
+          .child(memberId)
+          .child('voice_note.m4a');
+
+      await storageRef.putFile(file);
+
+      final downloadUrl =
+          await storageRef.getDownloadURL();
+
+      print(
+        'Voice uploaded: $downloadUrl',
+      );
+
+      return downloadUrl;
+    } catch (e) {
+      print(
+        'Voice upload error: $e',
+      );
+
+      rethrow;
+    }
   }
 
-  // Step 4: Play Voice Note
-  Future<void> playVoiceNote(String url) async {
-    await _player.stop();
-    await _player.play(UrlSource(url));
+  // =========================
+  // PLAY VOICE
+  // =========================
+  Future<void> playVoice(String url) async {
+    try {
+      if (url.isEmpty) {
+        return;
+      }
+
+      await _audioPlayer.stop();
+
+      await _audioPlayer.play(
+        UrlSource(url),
+      );
+
+      print('Voice playing');
+    } catch (e) {
+      print(
+        'Voice playback error: $e',
+      );
+    }
   }
 
-  Future<void> stopPlayback() async {
-    await _player.stop();
+  // =========================
+  // STOP VOICE
+  // =========================
+  Future<void> stopVoice() async {
+    try {
+      await _audioPlayer.stop();
+    } catch (e) {
+      print(
+        'Stop voice error: $e',
+      );
+    }
+  }
+
+  // =========================
+  // CHECK RECORDING STATUS
+  // =========================
+  bool get isRecording => _isRecording;
+
+  // =========================
+  // DISPOSE
+  // =========================
+  Future<void> dispose() async {
+    await _recorder.dispose();
+    await _audioPlayer.dispose();
   }
 }
