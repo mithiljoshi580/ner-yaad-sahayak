@@ -34,4 +34,24 @@ class MemoryService {
       return {'id': doc.id, ...doc.data()};
     }).toList();
   }
+
+  // Get family member by face ID
+  Future<Map<String, dynamic>?> getMemberByFaceId(
+    String uid,
+    String faceId,
+  ) async {
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('familyMembers')
+        .where('faceId', isEqualTo: faceId)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      return {'id': snapshot.docs.first.id, ...snapshot.docs.first.data()};
+    }
+
+    return null;
+  }
 }

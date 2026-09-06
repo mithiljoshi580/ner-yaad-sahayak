@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:record/record.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -12,12 +13,10 @@ class VoiceService {
   Future<void> startRecording() async {
     if (await _record.hasPermission()) {
       final dir = await getTemporaryDirectory();
-      String path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      
-      await _record.start(
-        const RecordConfig(),
-        path: path,
-      );
+      String path =
+          '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      await _record.start(const RecordConfig(), path: path);
       print("Recording started at $path");
     }
   }
@@ -30,8 +29,13 @@ class VoiceService {
   }
 
   // Step 3: Firebase Storage me Upload
-  Future<String> saveVoiceToStorage(String uid, String memberId, String filePath) async {
+  Future<String> saveVoiceToStorage(
+    String uid,
+    String memberId,
+    String filePath,
+  ) async {
     File file = File(filePath);
+
     final ref = FirebaseStorage.instance
         .ref()
         .child('users')
@@ -40,7 +44,9 @@ class VoiceService {
         .child('$memberId.m4a');
 
     await ref.putFile(file);
+
     String downloadUrl = await ref.getDownloadURL();
+
     return downloadUrl;
   }
 
@@ -50,6 +56,12 @@ class VoiceService {
     await _player.play(UrlSource(url));
   }
 
+  // Compatibility method used by family_detail_screen.dart
+  Future<void> playVoice(String url) async {
+    await playVoiceNote(url);
+  }
+
+  // Stop Voice Playback
   Future<void> stopPlayback() async {
     await _player.stop();
   }
