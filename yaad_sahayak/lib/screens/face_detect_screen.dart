@@ -1,9 +1,11 @@
 import 'dart:io';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 import '../services/face_recognition_service.dart';
+import '../services/voice_service.dart';
 import 'add_family_member_screen.dart';
 
 class FaceDetectScreen extends StatefulWidget {
@@ -17,10 +19,12 @@ class FaceDetectScreen extends StatefulWidget {
   });
 
   @override
-  State<FaceDetectScreen> createState() => _FaceDetectScreenState();
+  State<FaceDetectScreen> createState() =>
+      _FaceDetectScreenState();
 }
 
-class _FaceDetectScreenState extends State<FaceDetectScreen> {
+class _FaceDetectScreenState extends State<FaceDetectScreen>
+    with SingleTickerProviderStateMixin {
   CameraController? _cameraController;
 
   late FaceDetector _faceDetector;
@@ -28,26 +32,42 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
   final FaceRecognitionService _faceRecognitionService =
       FaceRecognitionService();
 
+  final VoiceService _voiceService = VoiceService();
+
   bool _isDetecting = false;
+  bool _isProcessingVerification = false;
+
+  bool _blinkDetected = false;
+  bool _smileDetected = false;
+  bool _livenessPassed = false;
+
   List<Face> _faces = [];
+
+  late AnimationController _scanAnimationController;
 
   @override
   void initState() {
     super.initState();
 
+    _scanAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+
     _faceDetector = FaceDetector(
       options: FaceDetectorOptions(
         performanceMode: FaceDetectorMode.fast,
         enableContours: true,
+        enableClassification: true,
       ),
     );
 
     _initializeCamera();
   }
 
-  // ------------------------------------------------------------
-  // CAMERA INITIALIZATION
-  // ------------------------------------------------------------
+  // ============================================================
+  // CAMERA
+  // ============================================================
 
   Future<void> _initializeCamera() async {
     try {
@@ -84,7 +104,9 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
         _processCameraImage,
       );
 
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     } catch (e) {
       debugPrint('Camera error: $e');
 
@@ -97,11 +119,13 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
     }
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // FACE DETECTION
-  // ------------------------------------------------------------
+  // ============================================================
 
-  Future<void> _processCameraImage(CameraImage image) async {
+  Future<void> _processCameraImage(
+    CameraImage image,
+  ) async {
     if (_isDetecting) return;
 
     _isDetecting = true;
@@ -110,15 +134,31 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
       final inputImage =
           _inputImageFromCameraImage(image);
 
-      if (inputImage != null) {
-        final faces =
-            await _faceDetector.processImage(
-          inputImage,
-        );
+      if (inputImage == null) {
+        return;
+      }
 
-        if (mounted) {
+      final faces =
+          await _faceDetector.processImage(
+        inputImage,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _faces = faces;
+      });
+
+      if (faces.length == 1) {
+        _checkLiveness(faces.first);
+      } else {
+        if (_livenessPassed ||
+            _blinkDetected ||
+            _smileDetected) {
           setState(() {
-            _faces = faces;
+            _livenessPassed = false;
+            _blinkDetected = false;
+            _smileDetected = false;
           });
         }
       }
@@ -131,9 +171,9 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
     }
   }
 
-  // ------------------------------------------------------------
-  // CONVERT CAMERA IMAGE
-  // ------------------------------------------------------------
+  // ============================================================
+  // INPUT IMAGE
+  // ============================================================
 
   InputImage? _inputImageFromCameraImage(
     CameraImage image,
@@ -141,22 +181,25 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
     final camera =
         _cameraController?.description;
 
-    if (camera == null) return null;
+    if (camera == null) {
+      return null;
+    }
 
     final rotation =
         InputImageRotationValue.fromRawValue(
-              camera.sensorOrientation,
-            ) ??
-            InputImageRotation.rotation0deg;
+          camera.sensorOrientation,
+        ) ??
+        InputImageRotation.rotation0deg;
 
     final format =
         InputImageFormatValue.fromRawValue(
-      image.format.raw,
-    );
+          image.format.raw,
+        );
 
-    if (format == null) return null;
-
-    if (image.planes.isEmpty) return null;
+    if (format == null ||
+        image.planes.isEmpty) {
+      return null;
+    }
 
     final plane = image.planes.first;
 
@@ -169,14 +212,15 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
         ),
         rotation: rotation,
         format: format,
-        bytesPerRow: plane.bytesPerRow,
+        bytesPerRow:
+            plane.bytesPerRow,
       ),
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // DEMO FACE EMBEDDING
-  // ------------------------------------------------------------
+  // ============================================================
 
   List<double> _getCurrentFaceEmbedding() {
     if (_faces.isEmpty) {
@@ -194,9 +238,63 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
     ];
   }
 
-  // ------------------------------------------------------------
-  // SAVE FACE - DAY 2
-  // ------------------------------------------------------------
+  // ============================================================
+  // LIVENESS
+  // ============================================================
+
+  void _checkLiveness(Face face) {
+    final leftEye =
+        face.leftEyeOpenProbability;
+
+    final rightEye =
+        face.rightEyeOpenProbability;
+
+    final smile =
+        face.smilingProbability;
+
+    bool blink = false;
+
+    if (leftEye != null &&
+        rightEye != null) {
+      blink =
+          leftEye < 0.35 ||
+          rightEye < 0.35;
+    }
+
+    bool smileDetected = false;
+
+    if (smile != null) {
+      smileDetected =
+          smile > 0.65;
+    }
+
+    if (blink &&
+        !_blinkDetected) {
+      setState(() {
+        _blinkDetected = true;
+      });
+    }
+
+    if (smileDetected &&
+        !_smileDetected) {
+      setState(() {
+        _smileDetected = true;
+      });
+    }
+
+    if (_blinkDetected ||
+        _smileDetected) {
+      if (!_livenessPassed) {
+        setState(() {
+          _livenessPassed = true;
+        });
+      }
+    }
+  }
+
+  // ============================================================
+  // SAVE FACE
+  // ============================================================
 
   Future<void> _saveFace() async {
     if (_faces.isEmpty) {
@@ -207,11 +305,36 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
       return;
     }
 
+    if (_faces.length > 1) {
+      _showMessage(
+        'Please keep only one face in camera',
+        Colors.orange,
+      );
+      return;
+    }
+
+    if (!_livenessPassed) {
+      _showMessage(
+        'Please blink or smile first',
+        Colors.orange,
+      );
+      return;
+    }
+
     final embedding =
         _getCurrentFaceEmbedding();
 
+    if (embedding.isEmpty) {
+      _showMessage(
+        'Unable to detect face',
+        Colors.red,
+      );
+      return;
+    }
+
     try {
-      await _faceRecognitionService.saveFace(
+      await _faceRecognitionService
+          .saveFace(
         embedding,
       );
 
@@ -231,15 +354,35 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
     }
   }
 
-  // ------------------------------------------------------------
-  // VERIFY / LINK FACE - DAY 3
-  // ------------------------------------------------------------
+  // ============================================================
+  // VERIFY / LINK FACE
+  // ============================================================
 
   Future<void> _verifyFace() async {
+    if (_isProcessingVerification) {
+      return;
+    }
+
     if (_faces.isEmpty) {
       _showMessage(
         'No Face Detected',
         Colors.red,
+      );
+      return;
+    }
+
+    if (_faces.length > 1) {
+      _showMessage(
+        'Multiple faces detected. Please keep only one face.',
+        Colors.orange,
+      );
+      return;
+    }
+
+    if (!_livenessPassed) {
+      _showMessage(
+        'Please blink or smile for liveness check',
+        Colors.orange,
       );
       return;
     }
@@ -255,11 +398,14 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
       return;
     }
 
+    setState(() {
+      _isProcessingVerification = true;
+    });
+
     try {
-      // --------------------------------------------------------
-      // CASE 1:
-      // VERIFY FACE FOR EXISTING FAMILY MEMBER
-      // --------------------------------------------------------
+      // ========================================================
+      // LINK FACE WITH EXISTING FAMILY MEMBER
+      // ========================================================
 
       if (widget.memberId != null &&
           widget.memberId!.isNotEmpty) {
@@ -271,26 +417,24 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
 
         if (!mounted) return;
 
-        _showMessage(
-          'Face linked with family member',
-          Colors.green,
-        );
-
-        await Future.delayed(
-          const Duration(milliseconds: 800),
+        await _showSuccessAnimation(
+          'Face Linked!',
+          'Face successfully linked with family member.',
         );
 
         if (mounted) {
-          Navigator.pop(context, true);
+          Navigator.pop(
+            context,
+            true,
+          );
         }
 
         return;
       }
 
-      // --------------------------------------------------------
-      // CASE 2:
+      // ========================================================
       // AUTO IDENTIFY FAMILY MEMBER
-      // --------------------------------------------------------
+      // ========================================================
 
       final matchedMemberId =
           await _faceRecognitionService
@@ -305,6 +449,10 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
           matchedMemberId,
         );
       } else {
+        await _showFailureAnimation();
+
+        if (!mounted) return;
+
         _showAddNewFamilyMemberDialog();
       }
     } catch (e) {
@@ -314,23 +462,197 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
 
       if (!mounted) return;
 
-      _showMessage(
-        'Face verification failed',
-        Colors.red,
-      );
+      await _showFailureAnimation();
+
+      if (mounted) {
+        _showMessage(
+          'Face verification failed',
+          Colors.red,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingVerification =
+              false;
+        });
+      }
     }
   }
 
-  // ------------------------------------------------------------
-  // SHOW MATCHED FAMILY MEMBER
-  // ------------------------------------------------------------
+  // ============================================================
+  // SUCCESS DIALOG
+  // ============================================================
+
+  Future<void> _showSuccessAnimation(
+    String title,
+    String message,
+  ) async {
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor:
+              const Color(0xFF242844),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(22),
+          ),
+          content: Column(
+            mainAxisSize:
+                MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.check_circle,
+                color:
+                    Colors.greenAccent,
+                size: 80,
+              ),
+              const SizedBox(
+                height: 18,
+              ),
+              Text(
+                title,
+                style:
+                    const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight:
+                      FontWeight.bold,
+                ),
+              ),
+              const SizedBox(
+                height: 10,
+              ),
+              Text(
+                message,
+                textAlign:
+                    TextAlign.center,
+                style:
+                    const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(
+                height: 20,
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(
+                    context,
+                  );
+                },
+                style:
+                    ElevatedButton.styleFrom(
+                  backgroundColor:
+                      const Color(
+                    0xFF6C3FC5,
+                  ),
+                  foregroundColor:
+                      Colors.white,
+                ),
+                child:
+                    const Text(
+                  'Continue',
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // FAILURE DIALOG
+  // ============================================================
+
+  Future<void> _showFailureAnimation() async {
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor:
+              const Color(0xFF242844),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(22),
+          ),
+          content: Column(
+            mainAxisSize:
+                MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.cancel,
+                color:
+                    Colors.redAccent,
+                size: 75,
+              ),
+              const SizedBox(
+                height: 15,
+              ),
+              const Text(
+                'Face Not Matched',
+                style:
+                    TextStyle(
+                  color: Colors.white,
+                  fontSize: 23,
+                  fontWeight:
+                      FontWeight.bold,
+                ),
+              ),
+              const SizedBox(
+                height: 10,
+              ),
+              const Text(
+                'No saved family member matched this face.',
+                textAlign:
+                    TextAlign.center,
+                style:
+                    TextStyle(
+                  color: Colors.white70,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(
+                height: 18,
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(
+                    context,
+                  );
+                },
+                child:
+                    const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // MATCHED FAMILY MEMBER
+  // ============================================================
 
   Future<void> _showMatchedFamilyMember(
     String memberId,
   ) async {
     try {
       final user =
-          _faceRecognitionService.currentUser;
+          _faceRecognitionService
+              .currentUser;
 
       if (user == null) {
         _showMessage(
@@ -344,73 +666,137 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
           await _faceRecognitionService
               .getAllSavedFaces(
         user.uid,
+        useCache: true,
       );
 
-      Map<String, dynamic>? matchedMember;
+      Map<String, dynamic>?
+          matchedMember;
 
-      for (final member in members) {
-        if (member['memberId'] == memberId) {
-          matchedMember = member;
+      for (final member
+          in members) {
+        if (member['memberId'] ==
+            memberId) {
+          matchedMember =
+              member;
           break;
         }
       }
 
       if (!mounted) return;
 
-      if (matchedMember == null) {
+      if (matchedMember ==
+          null) {
         _showMessage(
-          'Family member found but details unavailable',
+          'Family member details unavailable',
           Colors.orange,
         );
         return;
       }
 
       final name =
-          matchedMember['name']?.toString() ??
-              'Family Member';
+          matchedMember['name']
+              ?.toString() ??
+          'Family Member';
 
       final relation =
-          matchedMember['relation']?.toString() ??
-              'Family';
+          matchedMember['relation']
+              ?.toString() ??
+          'Family';
 
       final image =
-          matchedMember['image']?.toString() ??
-              matchedMember['photo']?.toString() ??
-              '';
+          matchedMember['image']
+              ?.toString() ??
+          matchedMember['photo']
+              ?.toString() ??
+          '';
 
       final voiceNote =
-          matchedMember['voiceNote']?.toString() ??
-              matchedMember['voiceNoteUrl']
-                  ?.toString() ??
-              '';
+          matchedMember['voiceNote']
+              ?.toString() ??
+          matchedMember[
+                  'voiceNoteUrl']
+              ?.toString() ??
+          '';
+
+      // ========================================================
+      // AUTO PLAY VOICE NOTE
+      // ========================================================
+
+      if (voiceNote.isNotEmpty) {
+        await _voiceService
+            .playVoice(
+          voiceNote,
+        );
+      }
+
+      if (!mounted) return;
 
       await showModalBottomSheet(
         context: context,
         backgroundColor:
             const Color(0xFF181A2E),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
+        shape:
+            const RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.vertical(
             top: Radius.circular(28),
           ),
         ),
         builder: (context) {
           return SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding:
+                  const EdgeInsets.all(
+                24,
+              ),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize:
+                    MainAxisSize.min,
                 children: [
                   Container(
                     width: 45,
                     height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.white30,
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          Colors.white30,
                       borderRadius:
-                          BorderRadius.circular(10),
+                          BorderRadius
+                              .circular(
+                        10,
+                      ),
                     ),
                   ),
 
-                  const SizedBox(height: 22),
+                  const SizedBox(
+                    height: 22,
+                  ),
+
+                  const Icon(
+                    Icons.check_circle,
+                    color:
+                        Colors.greenAccent,
+                    size: 60,
+                  ),
+
+                  const SizedBox(
+                    height: 12,
+                  ),
+
+                  const Text(
+                    'Face Matched!',
+                    style:
+                        TextStyle(
+                      color: Colors.white,
+                      fontSize: 23,
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 18,
+                  ),
 
                   CircleAvatar(
                     radius: 50,
@@ -418,64 +804,92 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
                         Colors.white12,
                     backgroundImage:
                         image.isNotEmpty
-                            ? NetworkImage(image)
+                            ? NetworkImage(
+                                image,
+                              )
                             : null,
-                    child: image.isEmpty
-                        ? const Icon(
-                            Icons.person,
-                            color: Colors.white70,
-                            size: 55,
-                          )
-                        : null,
+                    child:
+                        image.isEmpty
+                            ? const Icon(
+                                Icons.person,
+                                color:
+                                    Colors.white70,
+                                size: 55,
+                              )
+                            : null,
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(
+                    height: 16,
+                  ),
 
                   Text(
                     name,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    textAlign:
+                        TextAlign.center,
+                    style:
+                        const TextStyle(
                       color: Colors.white,
                       fontSize: 25,
-                      fontWeight: FontWeight.bold,
+                      fontWeight:
+                          FontWeight.bold,
                     ),
                   ),
 
-                  const SizedBox(height: 6),
+                  const SizedBox(
+                    height: 6,
+                  ),
 
                   Text(
                     relation,
-                    style: const TextStyle(
+                    style:
+                        const TextStyle(
                       color: Colors.white70,
                       fontSize: 17,
                     ),
                   ),
 
-                  const SizedBox(height: 22),
+                  const SizedBox(
+                    height: 20,
+                  ),
 
                   Container(
-                    width: double.infinity,
+                    width:
+                        double.infinity,
                     padding:
-                        const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
+                        const EdgeInsets.all(
+                      16,
+                    ),
+                    decoration:
+                        BoxDecoration(
                       color:
-                          const Color(0xFF242844),
+                          const Color(
+                        0xFF242844,
+                      ),
                       borderRadius:
-                          BorderRadius.circular(18),
+                          BorderRadius
+                              .circular(
+                        18,
+                      ),
                     ),
                     child: Row(
                       children: [
                         const Icon(
                           Icons.verified,
-                          color: Colors.greenAccent,
+                          color:
+                              Colors.greenAccent,
                           size: 30,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(
+                          width: 12,
+                        ),
                         const Expanded(
                           child: Text(
                             'Family member recognized',
-                            style: TextStyle(
-                              color: Colors.white,
+                            style:
+                                TextStyle(
+                              color:
+                                  Colors.white,
                               fontSize: 16,
                               fontWeight:
                                   FontWeight.w600,
@@ -486,37 +900,53 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
                     ),
                   ),
 
-                  if (voiceNote.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-
+                  if (voiceNote
+                      .isNotEmpty) ...[
+                    const SizedBox(
+                      height: 12,
+                    ),
                     SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(
+                      width:
+                          double.infinity,
+                      child:
+                          ElevatedButton
+                              .icon(
+                        icon:
+                            const Icon(
                           Icons.volume_up,
                         ),
-                        label: const Text(
+                        label:
+                            const Text(
                           'Play Voice Note',
                         ),
                         onPressed: () {
-                          // Voice playback can be connected
-                          // through VoiceService here.
+                          _voiceService
+                              .playVoice(
+                            voiceNote,
+                          );
                         },
                       ),
                     ),
                   ],
 
-                  const SizedBox(height: 18),
+                  const SizedBox(
+                    height: 18,
+                  ),
 
                   SizedBox(
-                    width: double.infinity,
+                    width:
+                        double.infinity,
                     height: 52,
-                    child: ElevatedButton(
+                    child:
+                        ElevatedButton(
                       onPressed: () {
-                        Navigator.pop(context);
+                        Navigator.pop(
+                          context,
+                        );
                       },
                       style:
-                          ElevatedButton.styleFrom(
+                          ElevatedButton
+                              .styleFrom(
                         backgroundColor:
                             const Color(
                           0xFF6C3FC5,
@@ -526,14 +956,17 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
                         shape:
                             RoundedRectangleBorder(
                           borderRadius:
-                              BorderRadius.circular(
+                              BorderRadius
+                                  .circular(
                             15,
                           ),
                         ),
                       ),
-                      child: const Text(
+                      child:
+                          const Text(
                         'Done',
-                        style: TextStyle(
+                        style:
+                            TextStyle(
                           fontSize: 17,
                           fontWeight:
                               FontWeight.bold,
@@ -561,9 +994,9 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
     }
   }
 
-  // ------------------------------------------------------------
-  // ADD NEW FAMILY MEMBER DIALOG
-  // ------------------------------------------------------------
+  // ============================================================
+  // ADD NEW FAMILY MEMBER
+  // ============================================================
 
   void _showAddNewFamilyMemberDialog() {
     showDialog(
@@ -572,7 +1005,8 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
         return AlertDialog(
           backgroundColor:
               const Color(0xFF242844),
-          shape: RoundedRectangleBorder(
+          shape:
+              RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.circular(20),
           ),
@@ -580,7 +1014,8 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
             'Face Not Matched',
             style: TextStyle(
               color: Colors.white,
-              fontWeight: FontWeight.bold,
+              fontWeight:
+                  FontWeight.bold,
             ),
           ),
           content: const Text(
@@ -594,18 +1029,23 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(
+                  context,
+                );
               },
               child: const Text(
                 'Cancel',
                 style: TextStyle(
-                  color: Colors.white70,
+                  color:
+                      Colors.white70,
                 ),
               ),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(
+                  context,
+                );
 
                 Navigator.push(
                   context,
@@ -618,10 +1058,14 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
               style:
                   ElevatedButton.styleFrom(
                 backgroundColor:
-                    const Color(0xFF6C3FC5),
-                foregroundColor: Colors.white,
+                    const Color(
+                  0xFF6C3FC5,
+                ),
+                foregroundColor:
+                    Colors.white,
               ),
-              child: const Text(
+              child:
+                  const Text(
                 'Add Member',
               ),
             ),
@@ -631,9 +1075,33 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
+  // STATUS
+  // ============================================================
+
+  String _getStatusMessage() {
+    if (_isProcessingVerification) {
+      return 'Verifying face...';
+    }
+
+    if (_faces.isEmpty) {
+      return 'Look at the camera';
+    }
+
+    if (_faces.length > 1) {
+      return 'Multiple faces detected';
+    }
+
+    if (!_livenessPassed) {
+      return 'Please blink or smile';
+    }
+
+    return 'Face ready for verification';
+  }
+
+  // ============================================================
   // MESSAGE
-  // ------------------------------------------------------------
+  // ============================================================
 
   void _showMessage(
     String message,
@@ -647,29 +1115,41 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
         content: Text(message),
         backgroundColor: color,
         duration:
-            const Duration(seconds: 2),
+            const Duration(
+          seconds: 2,
+        ),
       ),
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // DISPOSE
-  // ------------------------------------------------------------
+  // ============================================================
 
   @override
   void dispose() {
+    _scanAnimationController
+        .dispose();
+
+    _voiceService.dispose();
+
     _cameraController?.dispose();
+
     _faceDetector.close();
+
     super.dispose();
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // UI
-  // ------------------------------------------------------------
+  // ============================================================
 
   @override
-  Widget build(BuildContext context) {
-    if (_cameraController == null ||
+  Widget build(
+    BuildContext context,
+  ) {
+    if (_cameraController ==
+            null ||
         !_cameraController!
             .value
             .isInitialized) {
@@ -677,7 +1157,8 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
         backgroundColor:
             Color(0xFF10152F),
         body: Center(
-          child: CircularProgressIndicator(),
+          child:
+              CircularProgressIndicator(),
         ),
       );
     }
@@ -696,9 +1177,11 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
               : widget.verifyMode
                   ? 'Verify Face'
                   : 'Face Detection',
-          style: const TextStyle(
+          style:
+              const TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.bold,
+            fontWeight:
+                FontWeight.bold,
           ),
         ),
       ),
@@ -713,8 +1196,13 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
                   _cameraController!,
                 ),
 
+                // =================================================
+                // FACE BOX
+                // =================================================
+
                 CustomPaint(
-                  painter: FacePainter(
+                  painter:
+                      FacePainter(
                     faces: _faces,
                     imageSize: Size(
                       _cameraController!
@@ -729,56 +1217,317 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
                   ),
                 ),
 
+                // =================================================
+                // SCANNING OVERLAY
+                // =================================================
+
+                Center(
+                  child:
+                      AnimatedBuilder(
+                    animation:
+                        _scanAnimationController,
+                    builder:
+                        (context, child) {
+                      return Container(
+                        width: 250,
+                        height: 320,
+                        decoration:
+                            BoxDecoration(
+                          border:
+                              Border.all(
+                            color: _livenessPassed
+                                ? Colors
+                                    .greenAccent
+                                : Colors
+                                    .white70,
+                            width: 3,
+                          ),
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            140,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  (_livenessPassed
+                                          ? Colors
+                                              .greenAccent
+                                          : Colors
+                                              .white)
+                                      .withValues(
+                                alpha:
+                                    0.18,
+                              ),
+                              blurRadius:
+                                  20,
+                              spreadRadius:
+                                  2,
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              top: 20 +
+                                  (_scanAnimationController
+                                          .value *
+                                      270),
+                              left: 20,
+                              right: 20,
+                              child:
+                                  Container(
+                                height: 2,
+                                decoration:
+                                    BoxDecoration(
+                                  color: _livenessPassed
+                                      ? Colors
+                                          .greenAccent
+                                      : Colors
+                                          .cyanAccent,
+                                  borderRadius:
+                                      BorderRadius
+                                          .circular(
+                                    5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                // =================================================
+                // STATUS
+                // =================================================
+
                 Positioned(
                   top: 20,
                   left: 20,
                   right: 20,
                   child: Container(
                     padding:
-                        const EdgeInsets.symmetric(
+                        const EdgeInsets
+                            .symmetric(
                       horizontal: 16,
                       vertical: 12,
                     ),
-                    decoration: BoxDecoration(
+                    decoration:
+                        BoxDecoration(
                       color:
                           Colors.black54,
                       borderRadius:
-                          BorderRadius.circular(
+                          BorderRadius
+                              .circular(
                         14,
                       ),
                     ),
-                    child: Text(
-                      _faces.isEmpty
-                          ? 'Look at the camera'
-                          : '${_faces.length} face detected',
-                      textAlign:
-                          TextAlign.center,
-                      style:
-                          const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight:
-                            FontWeight.w600,
-                      ),
+                    child: Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment
+                              .center,
+                      children: [
+                        Icon(
+                          _faces.isEmpty
+                              ? Icons
+                                  .face_retouching_natural
+                              : _faces.length >
+                                      1
+                                  ? Icons.groups
+                                  : _livenessPassed
+                                      ? Icons
+                                          .verified
+                                      : Icons
+                                          .visibility,
+                          color:
+                              _faces.length >
+                                      1
+                                  ? Colors
+                                      .orangeAccent
+                                  : _livenessPassed
+                                      ? Colors
+                                          .greenAccent
+                                      : Colors
+                                          .white,
+                        ),
+                        const SizedBox(
+                          width: 8,
+                        ),
+                        Flexible(
+                          child: Text(
+                            _getStatusMessage(),
+                            textAlign:
+                                TextAlign
+                                    .center,
+                            style:
+                                const TextStyle(
+                              color:
+                                  Colors.white,
+                              fontSize:
+                                  16,
+                              fontWeight:
+                                  FontWeight
+                                      .w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
+
+                // =================================================
+                // LIVENESS STATUS
+                // =================================================
+
+                Positioned(
+                  bottom: 20,
+                  left: 20,
+                  right: 20,
+                  child: Container(
+                    padding:
+                        const EdgeInsets
+                            .all(14),
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          Colors.black54,
+                      borderRadius:
+                          BorderRadius
+                              .circular(
+                        16,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _blinkDetected
+                              ? Icons
+                                  .check_circle
+                              : Icons
+                                  .remove_circle_outline,
+                          color:
+                              _blinkDetected
+                                  ? Colors
+                                      .greenAccent
+                                  : Colors
+                                      .white54,
+                        ),
+                        const SizedBox(
+                          width: 8,
+                        ),
+                        const Text(
+                          'Blink',
+                          style:
+                              TextStyle(
+                            color:
+                                Colors.white,
+                            fontSize:
+                                14,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          _smileDetected
+                              ? Icons
+                                  .check_circle
+                              : Icons
+                                  .remove_circle_outline,
+                          color:
+                              _smileDetected
+                                  ? Colors
+                                      .greenAccent
+                                  : Colors
+                                      .white54,
+                        ),
+                        const SizedBox(
+                          width: 8,
+                        ),
+                        const Text(
+                          'Smile',
+                          style:
+                              TextStyle(
+                            color:
+                                Colors.white,
+                            fontSize:
+                                14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // =================================================
+                // PROCESSING
+                // =================================================
+
+                if (_isProcessingVerification)
+                  Container(
+                    color:
+                        Colors.black45,
+                    child:
+                        const Center(
+                      child: Column(
+                        mainAxisSize:
+                            MainAxisSize
+                                .min,
+                        children: [
+                          CircularProgressIndicator(
+                            color:
+                                Colors.white,
+                          ),
+                          SizedBox(
+                            height: 15,
+                          ),
+                          Text(
+                            'Verifying face...',
+                            style:
+                                TextStyle(
+                              color:
+                                  Colors.white,
+                              fontSize:
+                                  16,
+                              fontWeight:
+                                  FontWeight
+                                      .w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
 
+          // ======================================================
+          // BUTTONS
+          // ======================================================
+
           Padding(
             padding:
-                const EdgeInsets.all(16),
+                const EdgeInsets.all(
+              16,
+            ),
             child: Row(
               children: [
                 if (!widget.verifyMode &&
-                    widget.memberId == null) ...[
+                    widget.memberId ==
+                        null) ...[
                   Expanded(
-                    child: ElevatedButton(
-                      onPressed: _saveFace,
+                    child:
+                        ElevatedButton(
+                      onPressed:
+                          _isProcessingVerification
+                              ? null
+                              : _saveFace,
                       style:
-                          ElevatedButton.styleFrom(
+                          ElevatedButton
+                              .styleFrom(
                         backgroundColor:
                             const Color(
                           0xFF2E8B57,
@@ -791,20 +1540,27 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
                           52,
                         ),
                       ),
-                      child: const Text(
+                      child:
+                          const Text(
                         'Save Face',
                       ),
                     ),
                   ),
-
-                  const SizedBox(width: 12),
+                  const SizedBox(
+                    width: 12,
+                  ),
                 ],
 
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: _verifyFace,
+                  child:
+                      ElevatedButton(
+                    onPressed:
+                        _isProcessingVerification
+                            ? null
+                            : _verifyFace,
                     style:
-                        ElevatedButton.styleFrom(
+                        ElevatedButton
+                            .styleFrom(
                       backgroundColor:
                           const Color(
                         0xFF6C3FC5,
@@ -818,9 +1574,12 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
                       ),
                     ),
                     child: Text(
-                      widget.memberId != null
-                          ? 'Link Face'
-                          : 'Verify Face',
+                      _isProcessingVerification
+                          ? 'Processing...'
+                          : widget.memberId !=
+                                  null
+                              ? 'Link Face'
+                              : 'Verify Face',
                     ),
                   ),
                 ),
@@ -837,7 +1596,8 @@ class _FaceDetectScreenState extends State<FaceDetectScreen> {
 // FACE PAINTER
 // ============================================================
 
-class FacePainter extends CustomPainter {
+class FacePainter
+    extends CustomPainter {
   final List<Face> faces;
   final Size imageSize;
 
@@ -852,18 +1612,24 @@ class FacePainter extends CustomPainter {
     Size size,
   ) {
     final paint = Paint()
-      ..color = Colors.green
-      ..style = PaintingStyle.stroke
+      ..color =
+          Colors.greenAccent
+      ..style =
+          PaintingStyle.stroke
       ..strokeWidth = 3;
 
-    for (final face in faces) {
-      final rect = face.boundingBox;
+    for (final face
+        in faces) {
+      final rect =
+          face.boundingBox;
 
       final scaleX =
-          size.width / imageSize.width;
+          size.width /
+              imageSize.width;
 
       final scaleY =
-          size.height / imageSize.height;
+          size.height /
+              imageSize.height;
 
       final left =
           rect.left * scaleX;
@@ -877,12 +1643,17 @@ class FacePainter extends CustomPainter {
       final bottom =
           rect.bottom * scaleY;
 
-      canvas.drawRect(
-        Rect.fromLTRB(
-          left,
-          top,
-          right,
-          bottom,
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTRB(
+            left,
+            top,
+            right,
+            bottom,
+          ),
+          const Radius.circular(
+            12,
+          ),
         ),
         paint,
       );
@@ -891,8 +1662,10 @@ class FacePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(
-    covariant FacePainter oldDelegate,
+    covariant FacePainter
+        oldDelegate,
   ) {
-    return oldDelegate.faces != faces;
+    return oldDelegate.faces !=
+        faces;
   }
 }

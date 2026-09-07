@@ -35,12 +35,10 @@ class FamilyListScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFF181A2E),
-
       appBar: AppBar(
         backgroundColor: const Color(0xFF1F2238),
         elevation: 0,
         centerTitle: true,
-
         title: const Text(
           'My Family',
           style: TextStyle(
@@ -49,7 +47,6 @@ class FamilyListScreen extends StatelessWidget {
             fontSize: 22,
           ),
         ),
-
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
@@ -61,7 +58,6 @@ class FamilyListScreen extends StatelessWidget {
           },
         ),
       ),
-
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
@@ -80,7 +76,7 @@ class FamilyListScreen extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                boxShadow: [
+                boxShadow: const [
                   BoxShadow(
                     color: Color(0xFF526FA6),
                     blurRadius: 25,
@@ -95,9 +91,13 @@ class FamilyListScreen extends StatelessWidget {
                     height: 82,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.12),
+                      color: Colors.white.withValues(
+                        alpha: 0.12,
+                      ),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(
+                          alpha: 0.2,
+                        ),
                         width: 1.5,
                       ),
                     ),
@@ -107,9 +107,7 @@ class FamilyListScreen extends StatelessWidget {
                       size: 42,
                     ),
                   ),
-
                   const SizedBox(height: 18),
-
                   const Text(
                     'Your Family, Your Memories',
                     textAlign: TextAlign.center,
@@ -119,14 +117,14 @@ class FamilyListScreen extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
                   Text(
                     'Keep your loved ones connected through stories, memories and shared moments.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(
+                        alpha: 0.7,
+                      ),
                       fontSize: 15,
                       height: 1.5,
                     ),
@@ -145,9 +143,7 @@ class FamilyListScreen extends StatelessWidget {
                   color: Color(0xFF7FA6E8),
                   size: 24,
                 ),
-
                 SizedBox(width: 10),
-
                 Text(
                   'Family Members',
                   style: TextStyle(
@@ -178,11 +174,9 @@ class FamilyListScreen extends StatelessWidget {
           ],
         ),
       ),
-
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: const Color(0xFF5C7FC2),
         elevation: 8,
-
         onPressed: () {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -194,12 +188,10 @@ class FamilyListScreen extends StatelessWidget {
             ),
           );
         },
-
         icon: const Icon(
           Icons.person_add_alt_1_rounded,
           color: Colors.white,
         ),
-
         label: const Text(
           'Add Member',
           style: TextStyle(
@@ -211,7 +203,6 @@ class FamilyListScreen extends StatelessWidget {
     );
   }
 }
-
 
 class _FamilyMemberCard extends StatelessWidget {
   final String name;
@@ -230,7 +221,6 @@ class _FamilyMemberCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(22),
-
       onTap: () {
         Navigator.push(
           context,
@@ -244,7 +234,6 @@ class _FamilyMemberCard extends StatelessWidget {
           ),
         );
       },
-
       child: Ink(
         decoration: BoxDecoration(
           color: const Color(0xFF25283A),
@@ -261,10 +250,8 @@ class _FamilyMemberCard extends StatelessWidget {
             ),
           ],
         ),
-
         child: Padding(
           padding: const EdgeInsets.all(16),
-
           child: Row(
             children: [
               // PROFILE IMAGE
@@ -279,7 +266,6 @@ class _FamilyMemberCard extends StatelessWidget {
                     ],
                   ),
                 ),
-
                 child: CircleAvatar(
                   radius: 34,
                   backgroundColor: const Color(0xFF1B1D2C),
@@ -292,7 +278,8 @@ class _FamilyMemberCard extends StatelessWidget {
               // NAME AND RELATION
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
                     Text(
                       name,
@@ -302,20 +289,18 @@ class _FamilyMemberCard extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-
                     const SizedBox(height: 8),
-
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 6,
                       ),
-
                       decoration: BoxDecoration(
-                        color: const Color(0xFF526FA6).withOpacity(0.18),
-                        borderRadius: BorderRadius.circular(20),
+                        color: const Color(0xFF526FA6)
+                            .withValues(alpha: 0.18),
+                        borderRadius:
+                            BorderRadius.circular(20),
                       ),
-
                       child: Text(
                         relation,
                         style: const TextStyle(

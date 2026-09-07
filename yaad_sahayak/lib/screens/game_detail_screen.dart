@@ -60,7 +60,6 @@ class GameDetailScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-
       appBar: AppBar(
         backgroundColor: const Color(0xFF121212),
         elevation: 0,
@@ -73,7 +72,6 @@ class GameDetailScreen extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -96,7 +94,7 @@ class GameDetailScreen extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: gameColor.withOpacity(0.35),
+                      color: gameColor.withValues(alpha: 0.35),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -167,7 +165,7 @@ class GameDetailScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (context) => QuizScreen(
                           gameName: gameName,
-                        ), 
+                        ),
                       ),
                     );
                   },
@@ -212,7 +210,7 @@ class GameDetailScreen extends StatelessWidget {
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: gameColor.withOpacity(0.4),
+          color: gameColor.withValues(alpha: 0.4),
         ),
       ),
       child: Column(

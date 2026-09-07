@@ -5,8 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../services/face_recognition_service.dart';
-
 class AddFamilyMemberScreen extends StatefulWidget {
   final String? memberId;
 
@@ -31,9 +29,6 @@ class _AddFamilyMemberScreenState
 
   final FirebaseAuth _auth =
       FirebaseAuth.instance;
-
-  final FaceRecognitionService _faceService =
-      FaceRecognitionService();
 
   File? _selectedImage;
   bool _isSaving = false;
@@ -231,8 +226,7 @@ class _AddFamilyMemberScreenState
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child:
-                            CircularProgressIndicator(
+                        child: CircularProgressIndicator(
                           strokeWidth: 2,
                           color: Colors.white,
                         ),

@@ -89,7 +89,6 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             const Text(
               "Let's Play & Explore 🎮",
               style: TextStyle(
@@ -117,7 +116,6 @@ class HomeScreen extends StatelessWidget {
             Expanded(
               child: GridView.builder(
                 itemCount: games.length,
-
                 gridDelegate:
                     const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
@@ -125,7 +123,6 @@ class HomeScreen extends StatelessWidget {
                   mainAxisSpacing: 16,
                   childAspectRatio: 0.82,
                 ),
-
                 itemBuilder: (context, index) {
                   final game = games[index];
 
@@ -133,7 +130,8 @@ class HomeScreen extends StatelessWidget {
                     onTap: () {
                       // Coming Soon
                       if (game['name'] == 'Coming Soon') {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(
                           const SnackBar(
                             content: Text(
                               'More exciting games coming soon!',
@@ -155,31 +153,26 @@ class HomeScreen extends StatelessWidget {
                         ),
                       );
                     },
-
                     child: Container(
                       decoration: BoxDecoration(
                         color: game['color'],
                         borderRadius:
                             BorderRadius.circular(24),
-
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black
+                                .withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 5),
                           ),
                         ],
                       ),
-
                       child: Padding(
                         padding: const EdgeInsets.all(16),
-
                         child: Column(
                           mainAxisAlignment:
                               MainAxisAlignment.center,
-
                           children: [
-
                             // GAME ICON
                             Icon(
                               game['icon'],

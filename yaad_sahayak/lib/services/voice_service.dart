@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
@@ -40,9 +41,9 @@ class VoiceService {
 
       _isRecording = true;
 
-      print('Recording started');
+      debugPrint('Recording started');
     } catch (e) {
-      print('Recording error: $e');
+      debugPrint('Recording error: $e');
     }
   }
 
@@ -59,11 +60,11 @@ class VoiceService {
 
       _isRecording = false;
 
-      print('Recording stopped: $path');
+      debugPrint('Recording stopped: $path');
 
       return path;
     } catch (e) {
-      print('Stop recording error: $e');
+      debugPrint('Stop recording error: $e');
       return null;
     }
   }
@@ -99,13 +100,13 @@ class VoiceService {
       final downloadUrl =
           await storageRef.getDownloadURL();
 
-      print(
+      debugPrint(
         'Voice uploaded: $downloadUrl',
       );
 
       return downloadUrl;
     } catch (e) {
-      print(
+      debugPrint(
         'Voice upload error: $e',
       );
 
@@ -128,9 +129,9 @@ class VoiceService {
         UrlSource(url),
       );
 
-      print('Voice playing');
+      debugPrint('Voice playing');
     } catch (e) {
-      print(
+      debugPrint(
         'Voice playback error: $e',
       );
     }
@@ -143,7 +144,7 @@ class VoiceService {
     try {
       await _audioPlayer.stop();
     } catch (e) {
-      print(
+      debugPrint(
         'Stop voice error: $e',
       );
     }
