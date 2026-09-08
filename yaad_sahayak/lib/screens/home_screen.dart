@@ -5,8 +5,6 @@ import 'family_list_screen.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  // ================= GAME DATA =================
-
   final List<Map<String, dynamic>> games = const [
     {
       'name': 'Thang Ta',
@@ -34,8 +32,6 @@ class HomeScreen extends StatelessWidget {
     },
   ];
 
-  // ================= RECENT MEMORIES =================
-
   final List<Map<String, String>> recentMemories = const [
     {
       'title': 'Family Together',
@@ -57,8 +53,6 @@ class HomeScreen extends StatelessWidget {
     },
   ];
 
-  // ================= THEME COLORS =================
-
   static const Color backgroundColor = Color(0xFF080B14);
   static const Color cardColor = Color(0xFF111827);
   static const Color primaryColor = Color(0xFF1E3A5F);
@@ -70,8 +64,6 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-
-      // ================= APP BAR =================
 
       appBar: AppBar(
         backgroundColor: backgroundColor,
@@ -102,21 +94,23 @@ class HomeScreen extends StatelessWidget {
             padding: const EdgeInsets.only(right: 10),
             child: IconButton(
               tooltip: 'My Family',
+
               icon: Container(
                 padding: const EdgeInsets.all(8),
+
                 decoration: BoxDecoration(
                   color: cardColor,
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: borderColor,
-                  ),
+                  border: Border.all(color: borderColor),
                 ),
+
                 child: const Icon(
                   Icons.family_restroom_rounded,
                   color: accentColor,
                   size: 22,
                 ),
               ),
+
               onPressed: () {
                 Navigator.push(
                   context,
@@ -130,8 +124,6 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
 
-      // ================= BODY =================
-
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
@@ -139,13 +131,13 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ================= GREETING CARD =================
-
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
+
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
+
                   gradient: const LinearGradient(
                     colors: [
                       Color(0xFF1E3A5F),
@@ -154,12 +146,14 @@ class HomeScreen extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
+
                   border: Border.all(
                     color: const Color(0xFF345A85),
                   ),
+
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.25),
+                      color: Colors.black.withValues(alpha: 0.25),
                       blurRadius: 15,
                       offset: const Offset(0, 8),
                     ),
@@ -171,10 +165,12 @@ class HomeScreen extends StatelessWidget {
                     Container(
                       width: 60,
                       height: 60,
+
                       decoration: BoxDecoration(
-                        color: accentColor.withOpacity(0.15),
+                        color: accentColor.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                       ),
+
                       child: const Icon(
                         Icons.wb_sunny_rounded,
                         color: Color(0xFFFFC857),
@@ -216,8 +212,6 @@ class HomeScreen extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              // ================= STATISTICS =================
-
               const Text(
                 'Your Memories',
                 style: TextStyle(
@@ -253,8 +247,6 @@ class HomeScreen extends StatelessWidget {
 
               const SizedBox(height: 32),
 
-              // ================= RECENT MEMORIES =================
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -277,6 +269,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                       );
                     },
+
                     child: const Text(
                       'View All',
                       style: TextStyle(
@@ -292,31 +285,33 @@ class HomeScreen extends StatelessWidget {
 
               SizedBox(
                 height: 190,
+
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: recentMemories.length,
+
                   itemBuilder: (context, index) {
                     final memory = recentMemories[index];
 
                     return Container(
                       width: 155,
+
                       margin: EdgeInsets.only(
-                        right:
-                            index == recentMemories.length - 1
-                                ? 0
-                                : 15,
+                        right: index == recentMemories.length - 1
+                            ? 0
+                            : 15,
                       ),
+
                       decoration: BoxDecoration(
                         color: cardColor,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: borderColor,
-                        ),
+                        border: Border.all(color: borderColor),
                       ),
+
                       clipBehavior: Clip.antiAlias,
+
                       child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Stack(
@@ -325,18 +320,34 @@ class HomeScreen extends StatelessWidget {
                                   child: Image.network(
                                     memory['image']!,
                                     fit: BoxFit.cover,
+
+                                    errorBuilder:
+                                        (context, error, stackTrace) {
+                                      return Container(
+                                        color: primaryColor,
+                                        child: const Icon(
+                                          Icons.image_not_supported_outlined,
+                                          color: secondaryTextColor,
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
 
                                 Positioned(
                                   top: 10,
                                   right: 10,
+
                                   child: Container(
                                     padding: const EdgeInsets.all(6),
+
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.45),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.45,
+                                      ),
                                       shape: BoxShape.circle,
                                     ),
+
                                     child: const Icon(
                                       Icons.favorite_rounded,
                                       color: Colors.white,
@@ -350,14 +361,17 @@ class HomeScreen extends StatelessWidget {
 
                           Padding(
                             padding: const EdgeInsets.all(12),
+
                             child: Column(
                               crossAxisAlignment:
                                   CrossAxisAlignment.start,
+
                               children: [
                                 Text(
                                   memory['title']!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
+
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
@@ -371,6 +385,7 @@ class HomeScreen extends StatelessWidget {
                                   memory['subtitle']!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
+
                                   style: const TextStyle(
                                     color: secondaryTextColor,
                                     fontSize: 11,
@@ -387,8 +402,6 @@ class HomeScreen extends StatelessWidget {
               ),
 
               const SizedBox(height: 32),
-
-              // ================= EXPLORE GAMES =================
 
               const Text(
                 'Explore Traditional Games',
@@ -411,8 +424,6 @@ class HomeScreen extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              // ================= GAME GRID =================
-
               GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -434,7 +445,9 @@ class HomeScreen extends StatelessWidget {
                       if (game['name'] == 'Coming Soon') {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('More games coming soon!'),
+                            content: Text(
+                              'More games coming soon!',
+                            ),
                           ),
                         );
                       } else {
@@ -453,12 +466,11 @@ class HomeScreen extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: cardColor,
                         borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: borderColor,
-                        ),
+                        border: Border.all(color: borderColor),
+
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             blurRadius: 10,
                             offset: const Offset(0, 5),
                           ),
@@ -469,19 +481,21 @@ class HomeScreen extends StatelessWidget {
                         padding: const EdgeInsets.all(16),
 
                         child: Column(
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
                               width: 62,
                               height: 62,
+
                               decoration: BoxDecoration(
-                                color: game['color'].withOpacity(0.15),
+                                color: (game['color'] as Color)
+                                    .withValues(alpha: 0.15),
                                 shape: BoxShape.circle,
                               ),
+
                               child: Icon(
-                                game['icon'],
-                                color: game['color'],
+                                game['icon'] as IconData,
+                                color: game['color'] as Color,
                                 size: 32,
                               ),
                             ),
@@ -489,8 +503,9 @@ class HomeScreen extends StatelessWidget {
                             const SizedBox(height: 16),
 
                             Text(
-                              game['name'],
+                              game['name'] as String,
                               textAlign: TextAlign.center,
+
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 17,
@@ -501,10 +516,11 @@ class HomeScreen extends StatelessWidget {
                             const SizedBox(height: 7),
 
                             Text(
-                              game['subtitle'],
+                              game['subtitle'] as String,
                               textAlign: TextAlign.center,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
+
                               style: const TextStyle(
                                 color: secondaryTextColor,
                                 fontSize: 12,
@@ -525,8 +541,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ================= STAT CARD =================
-
   Widget _buildStatCard({
     required IconData icon,
     required String number,
@@ -534,12 +548,11 @@ class HomeScreen extends StatelessWidget {
   }) {
     return Container(
       padding: const EdgeInsets.all(18),
+
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: borderColor,
-        ),
+        border: Border.all(color: borderColor),
       ),
 
       child: Column(
@@ -548,10 +561,12 @@ class HomeScreen extends StatelessWidget {
           Container(
             width: 45,
             height: 45,
+
             decoration: BoxDecoration(
               color: primaryColor,
               borderRadius: BorderRadius.circular(14),
             ),
+
             child: Icon(
               icon,
               color: accentColor,

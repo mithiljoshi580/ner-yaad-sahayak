@@ -38,7 +38,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
   List<Map<String, dynamic>> _getQuestionsForGame() {
     switch (widget.gameName) {
-      // ================= THANG TA =================
       case 'Thang Ta':
         return [
           {
@@ -91,16 +90,12 @@ class _QuizScreenState extends State<QuizScreen> {
               },
               {'letter': 'B', 'text': 'It is a modern video game'},
               {'letter': 'C', 'text': 'It was created recently'},
-              {
-                'letter': 'D',
-                'text': 'It is only played internationally',
-              },
+              {'letter': 'D', 'text': 'It is only played internationally'},
             ],
             'correctAnswer': 'A',
           },
         ];
 
-      // ================= MUKNA =================
       case 'Mukna':
         return [
           {
@@ -155,7 +150,6 @@ class _QuizScreenState extends State<QuizScreen> {
           },
         ];
 
-      // ================= INSUKNAWR =================
       case 'Insuknawr':
         return [
           {
@@ -202,10 +196,7 @@ class _QuizScreenState extends State<QuizScreen> {
             'question':
                 'Why are traditional games like Insuknawr important?',
             'options': [
-              {
-                'letter': 'A',
-                'text': 'They preserve cultural heritage',
-              },
+              {'letter': 'A', 'text': 'They preserve cultural heritage'},
               {'letter': 'B', 'text': 'They replace technology'},
               {'letter': 'C', 'text': 'They are only for computers'},
               {'letter': 'D', 'text': 'They have no cultural value'},
@@ -285,7 +276,6 @@ class _QuizScreenState extends State<QuizScreen> {
         backgroundColor: backgroundColor,
         elevation: 0,
         centerTitle: true,
-
         title: Text(
           '${widget.gameName} Quiz',
           style: const TextStyle(
@@ -293,7 +283,6 @@ class _QuizScreenState extends State<QuizScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
@@ -311,7 +300,6 @@ class _QuizScreenState extends State<QuizScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // QUESTION PROGRESS
               Row(
                 mainAxisAlignment:
                     MainAxisAlignment.spaceBetween,
@@ -325,7 +313,6 @@ class _QuizScreenState extends State<QuizScreen> {
                       letterSpacing: 1,
                     ),
                   ),
-
                   Text(
                     '${(progress * 100).toInt()}%',
                     style: const TextStyle(
@@ -340,22 +327,10 @@ class _QuizScreenState extends State<QuizScreen> {
 
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),
-                child: const LinearProgressIndicator(
-                  value: 0,
-                  minHeight: 8,
-                  backgroundColor: Color(0xFF1E293B),
-                ),
-              ),
-
-              // ACTUAL PROGRESS BAR
-              const SizedBox(height: 0),
-
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
                 child: LinearProgressIndicator(
                   value: progress,
                   minHeight: 8,
-                  backgroundColor: Colors.transparent,
+                  backgroundColor: const Color(0xFF1E293B),
                   valueColor:
                       const AlwaysStoppedAnimation<Color>(
                     accentColor,
@@ -369,10 +344,8 @@ class _QuizScreenState extends State<QuizScreen> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(28),
-
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(28),
-
                   gradient: const LinearGradient(
                     colors: [
                       primaryColor,
@@ -381,12 +354,10 @@ class _QuizScreenState extends State<QuizScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-
                   border: Border.all(
                     color: borderColor,
                   ),
                 ),
-
                 child: Column(
                   crossAxisAlignment:
                       CrossAxisAlignment.start,
@@ -394,12 +365,10 @@ class _QuizScreenState extends State<QuizScreen> {
                     Container(
                       width: 55,
                       height: 55,
-
                       decoration: const BoxDecoration(
                         color: primaryColor,
                         shape: BoxShape.circle,
                       ),
-
                       child: const Icon(
                         Icons.quiz_rounded,
                         color: Colors.white,
@@ -427,16 +396,13 @@ class _QuizScreenState extends State<QuizScreen> {
                               ? 'Correct! Great job! 🎉'
                               : 'Not quite! Check the correct answer below.')
                           : 'Choose the correct answer.',
-
                       style: TextStyle(
                         color: isAnswerChecked
                             ? (isCorrect
                                 ? Colors.greenAccent
                                 : Colors.redAccent)
                             : secondaryTextColor,
-
                         fontSize: 15,
-
                         fontWeight: isAnswerChecked
                             ? FontWeight.bold
                             : FontWeight.normal,
@@ -459,12 +425,9 @@ class _QuizScreenState extends State<QuizScreen> {
 
               const SizedBox(height: 16),
 
-              // OPTIONS
               ...(currentQuestion['options'] as List).map<Widget>(
                 (option) => Padding(
-                  padding:
-                      const EdgeInsets.only(bottom: 14),
-
+                  padding: const EdgeInsets.only(bottom: 14),
                   child: _buildOptionCard(
                     letter: option['letter'] as String,
                     text: option['text'] as String,
@@ -480,35 +443,27 @@ class _QuizScreenState extends State<QuizScreen> {
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
-                  margin:
-                      const EdgeInsets.only(bottom: 20),
-
+                  margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
                     color: isCorrect
-                        ? Colors.green.withOpacity(0.12)
-                        : Colors.red.withOpacity(0.12),
-
-                    borderRadius:
-                        BorderRadius.circular(16),
-
+                        ? Colors.green.withValues(alpha: 0.12)
+                        : Colors.red.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: isCorrect
                           ? Colors.greenAccent
                           : Colors.redAccent,
                     ),
                   ),
-
                   child: Row(
                     children: [
                       Icon(
                         isCorrect
                             ? Icons.check_circle_rounded
                             : Icons.cancel_rounded,
-
                         color: isCorrect
                             ? Colors.greenAccent
                             : Colors.redAccent,
-
                         size: 28,
                       ),
 
@@ -519,7 +474,6 @@ class _QuizScreenState extends State<QuizScreen> {
                           isCorrect
                               ? 'Correct answer! +1 point 🎉'
                               : 'Incorrect. The correct answer is $correctAnswer.',
-
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -534,7 +488,6 @@ class _QuizScreenState extends State<QuizScreen> {
               SizedBox(
                 width: double.infinity,
                 height: 58,
-
                 child: ElevatedButton(
                   onPressed: selectedOption == null
                       ? null
@@ -545,28 +498,22 @@ class _QuizScreenState extends State<QuizScreen> {
                             _nextQuestion();
                           }
                         },
-
                   style: ElevatedButton.styleFrom(
                     backgroundColor: accentColor,
                     disabledBackgroundColor:
                         const Color(0xFF1E293B),
-
                     foregroundColor: Colors.white,
                     disabledForegroundColor:
                         secondaryTextColor,
-
                     elevation: 0,
-
                     shape: RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.circular(18),
                     ),
                   ),
-
                   child: Row(
                     mainAxisAlignment:
                         MainAxisAlignment.center,
-
                     children: [
                       Icon(
                         !isAnswerChecked
@@ -576,9 +523,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                 ? Icons.emoji_events_rounded
                                 : Icons.arrow_forward_rounded,
                       ),
-
                       const SizedBox(width: 10),
-
                       Text(
                         !isAnswerChecked
                             ? 'Check Answer'
@@ -586,7 +531,6 @@ class _QuizScreenState extends State<QuizScreen> {
                                     questions.length - 1
                                 ? 'Finish Quiz'
                                 : 'Next Question',
-
                         style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
@@ -613,8 +557,7 @@ class _QuizScreenState extends State<QuizScreen> {
     required String correctAnswer,
   }) {
     final bool isSelected = selectedOption == letter;
-    final bool isCorrectOption =
-        letter == correctAnswer;
+    final bool isCorrectOption = letter == correctAnswer;
 
     Color optionBackgroundColor = cardColor;
     Color optionBorderColor = borderColor;
@@ -626,30 +569,21 @@ class _QuizScreenState extends State<QuizScreen> {
       if (isCorrectOption) {
         optionBackgroundColor =
             const Color(0xFF123B2A);
-
         optionBorderColor = Colors.greenAccent;
-
         circleColor = Colors.green;
-
         resultIcon = Icons.check_rounded;
       } else if (isSelected) {
         optionBackgroundColor =
             const Color(0xFF4A2028);
-
         optionBorderColor = Colors.redAccent;
-
         circleColor = Colors.redAccent;
-
         resultIcon = Icons.close_rounded;
       }
     } else if (isSelected) {
       optionBackgroundColor =
           const Color(0xFF1E3A5F);
-
       optionBorderColor = accentColor;
-
       circleColor = accentColor;
-
       resultIcon = Icons.check_rounded;
     }
 
@@ -663,22 +597,15 @@ class _QuizScreenState extends State<QuizScreen> {
             },
 
       child: AnimatedContainer(
-        duration:
-            const Duration(milliseconds: 250),
-
+        duration: const Duration(milliseconds: 250),
         width: double.infinity,
-
         padding: const EdgeInsets.all(16),
 
         decoration: BoxDecoration(
           color: optionBackgroundColor,
-
-          borderRadius:
-              BorderRadius.circular(18),
-
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: optionBorderColor,
-
             width: isSelected ||
                     (isAnswerChecked &&
                         isCorrectOption)
@@ -692,15 +619,12 @@ class _QuizScreenState extends State<QuizScreen> {
             AnimatedContainer(
               duration:
                   const Duration(milliseconds: 250),
-
               width: 42,
               height: 42,
-
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: circleColor,
               ),
-
               child: Center(
                 child: resultIcon != null
                     ? Icon(
@@ -723,11 +647,9 @@ class _QuizScreenState extends State<QuizScreen> {
             Expanded(
               child: Text(
                 text,
-
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 17,
-
                   fontWeight: isSelected
                       ? FontWeight.bold
                       : FontWeight.w500,
@@ -755,7 +677,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
   void _showCompletionDialog() {
     final int totalQuestions = questions.length;
-
     final double percentage =
         (score / totalQuestions) * 100;
 
@@ -779,57 +700,42 @@ class _QuizScreenState extends State<QuizScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-
       builder: (context) {
         return Dialog(
           backgroundColor: Colors.transparent,
-
           child: Container(
             padding: const EdgeInsets.all(24),
-
             decoration: BoxDecoration(
               color: cardColor,
-
               borderRadius:
                   BorderRadius.circular(28),
-
               border: Border.all(
                 color: borderColor,
               ),
-
               boxShadow: [
                 BoxShadow(
                   color:
-                      Colors.black.withOpacity(0.4),
-
+                      Colors.black.withValues(alpha: 0.4),
                   blurRadius: 25,
-
-                  offset:
-                      const Offset(0, 10),
+                  offset: const Offset(0, 10),
                 ),
               ],
             ),
 
             child: Column(
               mainAxisSize: MainAxisSize.min,
-
               children: [
-                // RESULT ICON
                 Container(
                   width: 80,
                   height: 80,
-
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-
                     color: primaryColor,
-
                     border: Border.all(
                       color: accentColor,
                       width: 2,
                     ),
                   ),
-
                   child: Icon(
                     resultIcon,
                     color:
@@ -842,9 +748,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
                 const Text(
                   'Quiz Completed!',
-
                   textAlign: TextAlign.center,
-
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -856,7 +760,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
                 Text(
                   widget.gameName,
-
                   style: const TextStyle(
                     color: Color(0xFF60A5FA),
                     fontSize: 16,
@@ -866,32 +769,25 @@ class _QuizScreenState extends State<QuizScreen> {
 
                 const SizedBox(height: 25),
 
-                // SCORE CARD
                 Container(
                   width: double.infinity,
-
                   padding:
                       const EdgeInsets.symmetric(
                     vertical: 20,
                     horizontal: 25,
                   ),
-
                   decoration: BoxDecoration(
                     color: backgroundColor,
-
                     borderRadius:
                         BorderRadius.circular(20),
-
                     border: Border.all(
                       color: borderColor,
                     ),
                   ),
-
                   child: Column(
                     children: [
                       const Text(
                         'YOUR SCORE',
-
                         style: TextStyle(
                           color: secondaryTextColor,
                           fontSize: 12,
@@ -905,7 +801,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
                       Text(
                         '$score / $totalQuestions',
-
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 36,
@@ -918,7 +813,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
                       Text(
                         '${percentage.toInt()}% Correct',
-
                         style: const TextStyle(
                           color: Color(0xFF60A5FA),
                           fontSize: 14,
@@ -934,9 +828,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
                 Text(
                   message,
-
                   textAlign: TextAlign.center,
-
                   style: const TextStyle(
                     color: secondaryTextColor,
                     fontSize: 14,
@@ -946,7 +838,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
                 const SizedBox(height: 28),
 
-                // BUTTONS
                 Row(
                   children: [
                     Expanded(
@@ -955,21 +846,17 @@ class _QuizScreenState extends State<QuizScreen> {
                           Navigator.pop(context);
                           Navigator.pop(context);
                         },
-
                         style:
                             OutlinedButton.styleFrom(
                           side: const BorderSide(
                             color: borderColor,
                           ),
-
                           foregroundColor:
                               secondaryTextColor,
-
                           padding:
                               const EdgeInsets.symmetric(
                             vertical: 15,
                           ),
-
                           shape:
                               RoundedRectangleBorder(
                             borderRadius:
@@ -978,10 +865,8 @@ class _QuizScreenState extends State<QuizScreen> {
                             ),
                           ),
                         ),
-
                         child: const Text(
                           'Exit',
-
                           style: TextStyle(
                             fontWeight:
                                 FontWeight.w600,
@@ -993,8 +878,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     const SizedBox(width: 12),
 
                     Expanded(
-                      child:
-                          ElevatedButton.icon(
+                      child: ElevatedButton.icon(
                         onPressed: () {
                           Navigator.pop(context);
 
@@ -1005,36 +889,28 @@ class _QuizScreenState extends State<QuizScreen> {
                             score = 0;
                           });
                         },
-
                         icon: const Icon(
                           Icons.refresh_rounded,
                           size: 20,
                         ),
-
                         label: const Text(
                           'Restart',
-
                           style: TextStyle(
                             fontWeight:
                                 FontWeight.bold,
                           ),
                         ),
-
                         style:
                             ElevatedButton.styleFrom(
                           backgroundColor:
                               accentColor,
-
                           foregroundColor:
                               Colors.white,
-
                           elevation: 0,
-
                           padding:
                               const EdgeInsets.symmetric(
                             vertical: 15,
                           ),
-
                           shape:
                               RoundedRectangleBorder(
                             borderRadius:

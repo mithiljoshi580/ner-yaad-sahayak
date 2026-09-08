@@ -77,15 +77,17 @@ class GameDetailScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16),
+
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // GAME HERO SECTION
               Container(
                 height: 240,
                 width: double.infinity,
+
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
+
                   gradient: LinearGradient(
                     colors: [
                       gameColor,
@@ -94,14 +96,16 @@ class GameDetailScreen extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
+
                   boxShadow: [
                     BoxShadow(
-                      color: gameColor.withOpacity(0.35),
+                      color: gameColor.withValues(alpha: 0.35),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
                   ],
                 ),
+
                 child: Center(
                   child: Icon(
                     game['icon'],
@@ -113,7 +117,6 @@ class GameDetailScreen extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // GAME TITLE
               Text(
                 gameName,
                 style: const TextStyle(
@@ -136,7 +139,6 @@ class GameDetailScreen extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // ABOUT THE GAME
               _buildInfoCard(
                 icon: Icons.auto_stories,
                 title: 'About the Game',
@@ -146,7 +148,6 @@ class GameDetailScreen extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // HOW TO PLAY
               _buildInfoCard(
                 icon: Icons.sports_esports,
                 title: 'How to Play',
@@ -156,10 +157,10 @@ class GameDetailScreen extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              // PLAY QUIZ BUTTON
               SizedBox(
                 width: double.infinity,
                 height: 60,
+
                 child: ElevatedButton.icon(
                   onPressed: () {
                     Navigator.push(
@@ -167,11 +168,13 @@ class GameDetailScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (context) => QuizScreen(
                           gameName: gameName,
-                        ), 
+                        ),
                       ),
                     );
                   },
+
                   icon: const Icon(Icons.play_arrow_rounded),
+
                   label: const Text(
                     'PLAY QUIZ',
                     style: TextStyle(
@@ -180,6 +183,7 @@ class GameDetailScreen extends StatelessWidget {
                       letterSpacing: 1,
                     ),
                   ),
+
                   style: ElevatedButton.styleFrom(
                     backgroundColor: gameColor,
                     foregroundColor: Colors.white,
@@ -208,13 +212,16 @@ class GameDetailScreen extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
+
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(20),
+
         border: Border.all(
-          color: gameColor.withOpacity(0.4),
+          color: gameColor.withValues(alpha: 0.4),
         ),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

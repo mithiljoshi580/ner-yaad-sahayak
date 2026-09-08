@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AddFamilyMemberScreen extends StatefulWidget {
-  final Map<String, String>? existingMember;
+  final Map<String, dynamic>? existingMember;
 
   const AddFamilyMemberScreen({
     super.key,
@@ -20,7 +23,10 @@ class _AddFamilyMemberScreenState
   late final TextEditingController nameController;
   late final TextEditingController relationController;
   late final TextEditingController aboutController;
-  late final TextEditingController imageController;
+
+  Uint8List? selectedImage;
+
+  final ImagePicker _picker = ImagePicker();
 
   static const Color backgroundColor = Color(0xFF080B14);
   static const Color cardColor = Color(0xFF111827);
@@ -34,7 +40,6 @@ class _AddFamilyMemberScreenState
   void initState() {
     super.initState();
 
-    // Pre-fill the form when editing
     nameController = TextEditingController(
       text: widget.existingMember?['name'] ?? '',
     );
@@ -47,9 +52,7 @@ class _AddFamilyMemberScreenState
       text: widget.existingMember?['about'] ?? '',
     );
 
-    imageController = TextEditingController(
-      text: widget.existingMember?['image'] ?? '',
-    );
+    selectedImage = widget.existingMember?['image'];
   }
 
   @override
@@ -57,24 +60,53 @@ class _AddFamilyMemberScreenState
     nameController.dispose();
     relationController.dispose();
     aboutController.dispose();
-    imageController.dispose();
 
     super.dispose();
   }
+
+  // ================= PICK IMAGE =================
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+      );
+
+      if (pickedFile == null) return;
+
+      final Uint8List imageBytes =
+          await pickedFile.readAsBytes();
+
+      setState(() {
+        selectedImage = imageBytes;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to select image. Please try again.',
+          ),
+        ),
+      );
+    }
+  }
+
+  // ================= SAVE =================
 
   void _saveFamilyMember() {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    final member = <String, String>{
+    final member = <String, dynamic>{
       'name': nameController.text.trim(),
       'relation': relationController.text.trim(),
       'about': aboutController.text.trim(),
-      'image': imageController.text.trim(),
+      'image': selectedImage,
     };
 
-    // Return the member to the previous screen
     Navigator.pop(context, member);
   }
 
@@ -89,7 +121,9 @@ class _AddFamilyMemberScreenState
         centerTitle: true,
 
         title: Text(
-          isEditing ? 'Edit Family Member' : 'Add Family Member',
+          isEditing
+              ? 'Edit Family Member'
+              : 'Add Family Member',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -102,9 +136,7 @@ class _AddFamilyMemberScreenState
             color: Colors.white,
             size: 20,
           ),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
       ),
 
@@ -118,6 +150,7 @@ class _AddFamilyMemberScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+
                 // ================= HEADER =================
 
                 Container(
@@ -183,6 +216,79 @@ class _AddFamilyMemberScreenState
 
                 const SizedBox(height: 18),
 
+                // ================= IMAGE PICKER =================
+
+                Center(
+                  child: GestureDetector(
+                    onTap: _pickImage,
+
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 130,
+                          height: 130,
+
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: cardColor,
+                            border: Border.all(
+                              color: accentColor,
+                              width: 3,
+                            ),
+                          ),
+
+                          child: ClipOval(
+                            child: selectedImage != null
+                                ? Image.memory(
+                                    selectedImage!,
+                                    fit: BoxFit.cover,
+                                  )
+                                : const Icon(
+                                    Icons.person_rounded,
+                                    color: Colors.white,
+                                    size: 60,
+                                  ),
+                          ),
+                        ),
+
+                        Positioned(
+                          right: 5,
+                          bottom: 5,
+
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+
+                            decoration: const BoxDecoration(
+                              color: accentColor,
+                              shape: BoxShape.circle,
+                            ),
+
+                            child: const Icon(
+                              Icons.camera_alt_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                const Center(
+                  child: Text(
+                    'Tap to select a profile picture',
+                    style: TextStyle(
+                      color: secondaryTextColor,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
                 // ================= NAME =================
 
                 _buildTextField(
@@ -191,7 +297,8 @@ class _AddFamilyMemberScreenState
                   hint: 'Enter family member name',
                   icon: Icons.person_outline_rounded,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
+                    if (value == null ||
+                        value.trim().isEmpty) {
                       return 'Please enter a name';
                     }
 
@@ -209,7 +316,8 @@ class _AddFamilyMemberScreenState
                   hint: 'Example: Mother, Father, Sister',
                   icon: Icons.family_restroom_rounded,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
+                    if (value == null ||
+                        value.trim().isEmpty) {
                       return 'Please enter the relationship';
                     }
 
@@ -224,28 +332,18 @@ class _AddFamilyMemberScreenState
                 _buildTextField(
                   controller: aboutController,
                   label: 'About',
-                  hint: 'Write something about this family member',
+                  hint:
+                      'Write something about this family member',
                   icon: Icons.description_outlined,
                   maxLines: 4,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
+                    if (value == null ||
+                        value.trim().isEmpty) {
                       return 'Please write something about them';
                     }
 
                     return null;
                   },
-                ),
-
-                const SizedBox(height: 18),
-
-                // ================= IMAGE URL =================
-
-                _buildTextField(
-                  controller: imageController,
-                  label: 'Profile Image URL (Optional)',
-                  hint: 'Paste an image URL if available',
-                  icon: Icons.image_outlined,
-                  validator: null,
                 ),
 
                 const SizedBox(height: 35),
@@ -281,7 +379,8 @@ class _AddFamilyMemberScreenState
                       elevation: 0,
 
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius:
+                            BorderRadius.circular(18),
                       ),
                     ),
                   ),
@@ -308,6 +407,7 @@ class _AddFamilyMemberScreenState
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+
       children: [
         Text(
           label,
@@ -374,7 +474,8 @@ class _AddFamilyMemberScreenState
               ),
             ),
 
-            focusedErrorBorder: OutlineInputBorder(
+            focusedErrorBorder:
+                OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(
                 color: Colors.redAccent,

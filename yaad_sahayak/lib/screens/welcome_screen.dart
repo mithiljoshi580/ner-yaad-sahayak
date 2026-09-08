@@ -38,7 +38,9 @@ class WelcomeScreen extends StatelessWidget {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.deepPurple.withOpacity(0.3),
+                              color: Colors.deepPurple.withValues(
+                                alpha: 0.3,
+                              ),
                               blurRadius: 20,
                               spreadRadius: 2,
                             ),
@@ -53,9 +55,9 @@ class WelcomeScreen extends StatelessWidget {
 
                       const SizedBox(width: 16),
 
-                      Column(
+                      const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
+                        children: [
                           Text(
                             'YAAD SAHAYAK',
                             style: TextStyle(
@@ -97,7 +99,9 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.deepPurple.withOpacity(0.35),
+                          color: Colors.deepPurple.withValues(
+                            alpha: 0.35,
+                          ),
                           blurRadius: 35,
                           spreadRadius: 8,
                         ),
@@ -143,7 +147,7 @@ class WelcomeScreen extends StatelessWidget {
                       'of North-East India and learn through play.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.65),
+                        color: Colors.white.withValues(alpha: 0.65),
                         fontSize: 17,
                         height: 1.6,
                       ),
@@ -199,8 +203,8 @@ class WelcomeScreen extends StatelessWidget {
                         backgroundColor: const Color(0xFF6E50C9),
                         foregroundColor: Colors.white,
                         elevation: 10,
-                        shadowColor:
-                            const Color(0xFF6E50C9).withOpacity(0.5),
+                        shadowColor: const Color(0xFF6E50C9)
+                            .withValues(alpha: 0.5),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -231,7 +235,7 @@ class WelcomeScreen extends StatelessWidget {
                   Text(
                     'Experience • Learn • Preserve',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.35),
+                      color: Colors.white.withValues(alpha: 0.35),
                       fontSize: 13,
                     ),
                   ),
@@ -258,11 +262,11 @@ class WelcomeScreen extends StatelessWidget {
         color: const Color(0xFF252940),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),

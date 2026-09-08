@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'family_detail_screen.dart';
 import 'add_family_member_screen.dart';
+import '../widgets/shimmer_loading.dart';
 
 class FamilyListScreen extends StatefulWidget {
   const FamilyListScreen({super.key});
@@ -10,10 +13,30 @@ class FamilyListScreen extends StatefulWidget {
 }
 
 class _FamilyListScreenState extends State<FamilyListScreen> {
-  final List<Map<String, String>> familyMembers = [];
+  final List<Map<String, dynamic>> familyMembers = [];
+
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFamilyMembers();
+  }
+
+  Future<void> _loadFamilyMembers() async {
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  // ================= ADD FAMILY MEMBER =================
 
   Future<void> _addFamilyMember() async {
-    final newMember = await Navigator.push<Map<String, String>>(
+    final newMember = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
         builder: (context) => const AddFamilyMemberScreen(),
@@ -39,6 +62,8 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
     }
   }
 
+  // ================= OPEN FAMILY MEMBER =================
+
   Future<void> _openFamilyMember(int index) async {
     final member = familyMembers[index];
 
@@ -48,8 +73,9 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
         builder: (context) => FamilyDetailScreen(
           name: member['name'] ?? '',
           relation: member['relation'] ?? '',
-          image: member['image'] ?? '',
+          image: member['image'],
           about: member['about'] ?? '',
+          heroTag: 'member_photo_$index',
         ),
       ),
     );
@@ -60,7 +86,7 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
 
     if (action == 'edit') {
       final updatedMember =
-          Map<String, String>.from(result['member']);
+          Map<String, dynamic>.from(result['member']);
 
       setState(() {
         familyMembers[index] = updatedMember;
@@ -120,160 +146,222 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
       ),
 
       body: SafeArea(
-        child: familyMembers.isEmpty
-            ? _buildEmptyState()
-            : ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  // HEADER
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(28),
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFF1E3A5F),
-                          Color(0xFF111827),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      border: Border.all(
-                        color: const Color(0xFF263548),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 82,
-                          height: 82,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white.withOpacity(0.08),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.15),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.family_restroom_rounded,
-                            color: Colors.white,
-                            size: 42,
-                          ),
-                        ),
-
-                        const SizedBox(height: 18),
-
-                        const Text(
-                          'Your Family, Your Memories',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 25,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        Text(
-                          'Keep your loved ones connected through stories, memories and shared moments.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 15,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.people_alt_rounded,
-                        color: Color(0xFF3B82F6),
-                        size: 24,
-                      ),
-
-                      const SizedBox(width: 10),
-
-                      const Text(
-                        'Family Members',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      const Spacer(),
-
-                      Text(
-                        '${familyMembers.length}',
-                        style: const TextStyle(
-                          color: Color(0xFF9CA3AF),
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // FAMILY MEMBER LIST
-                  ...familyMembers.asMap().entries.map(
-                    (entry) {
-                      final index = entry.key;
-                      final member = entry.value;
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: _FamilyMemberCard(
-                          name: member['name'] ?? '',
-                          relation: member['relation'] ?? '',
-                          image: member['image'] ?? '',
-                          about: member['about'] ?? '',
-                          onTap: () => _openFamilyMember(index),
-                        ),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 90),
-                ],
-              ),
+        child: _isLoading
+            ? _buildShimmerLoading()
+            : familyMembers.isEmpty
+                ? _buildEmptyState()
+                : _buildFamilyList(),
       ),
 
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF3B82F6),
-        elevation: 8,
-        onPressed: _addFamilyMember,
-        icon: const Icon(
-          Icons.person_add_alt_1_rounded,
-          color: Colors.white,
+      floatingActionButton: _isLoading
+          ? null
+          : FloatingActionButton.extended(
+              backgroundColor: const Color(0xFF3B82F6),
+              elevation: 8,
+              onPressed: _addFamilyMember,
+              icon: const Icon(
+                Icons.person_add_alt_1_rounded,
+                color: Colors.white,
+              ),
+              label: const Text(
+                'Add Member',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+    );
+  }
+
+  // ================= SHIMMER LOADING =================
+
+  Widget _buildShimmerLoading() {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        ShimmerLoading(
+          width: double.infinity,
+          height: 230,
+          borderRadius: BorderRadius.circular(28),
         ),
-        label: const Text(
-          'Add Member',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+
+        const SizedBox(height: 30),
+
+        Row(
+          children: [
+            ShimmerLoading(
+              width: 28,
+              height: 28,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            const SizedBox(width: 10),
+            ShimmerLoading(
+              width: 170,
+              height: 25,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        ...List.generate(
+          3,
+          (index) => Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: ShimmerLoading(
+              width: double.infinity,
+              height: 102,
+              borderRadius: BorderRadius.circular(22),
+            ),
           ),
         ),
+      ],
+    );
+  }
+
+  // ================= FAMILY LIST =================
+
+  Widget _buildFamilyList() {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        _buildHeader(),
+
+        const SizedBox(height: 30),
+
+        Row(
+          children: [
+            const Icon(
+              Icons.people_alt_rounded,
+              color: Color(0xFF3B82F6),
+              size: 24,
+            ),
+
+            const SizedBox(width: 10),
+
+            const Text(
+              'Family Members',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const Spacer(),
+
+            Text(
+              '${familyMembers.length}',
+              style: const TextStyle(
+                color: Color(0xFF9CA3AF),
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 18),
+
+        ...familyMembers.asMap().entries.map(
+          (entry) {
+            final index = entry.key;
+            final member = entry.value;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _FamilyMemberCard(
+                name: member['name'] ?? '',
+                relation: member['relation'] ?? '',
+                image: member['image'],
+                heroTag: 'member_photo_$index',
+                onTap: () => _openFamilyMember(index),
+              ),
+            );
+          },
+        ),
+
+        const SizedBox(height: 90),
+      ],
+    );
+  }
+
+  // ================= HEADER =================
+
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF1E3A5F),
+            Color(0xFF111827),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(
+          color: const Color(0xFF263548),
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 82,
+            height: 82,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.08),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.15),
+                width: 1.5,
+              ),
+            ),
+            child: const Icon(
+              Icons.family_restroom_rounded,
+              color: Colors.white,
+              size: 42,
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          const Text(
+            'Your Family, Your Memories',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 25,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          Text(
+            'Keep your loved ones connected through stories, memories and shared moments.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 15,
+              height: 1.5,
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  // ================= EMPTY STATE =================
+
   Widget _buildEmptyState() {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(30),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               width: 110,
@@ -296,6 +384,7 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
 
             const Text(
               'No Family Members Yet',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 23,
@@ -340,18 +429,20 @@ class _FamilyListScreenState extends State<FamilyListScreen> {
   }
 }
 
+// ================= FAMILY MEMBER CARD =================
+
 class _FamilyMemberCard extends StatelessWidget {
   final String name;
   final String relation;
-  final String image;
-  final String about;
+  final Uint8List? image;
+  final String heroTag;
   final VoidCallback onTap;
 
   const _FamilyMemberCard({
     required this.name,
     required this.relation,
     required this.image,
-    required this.about,
+    required this.heroTag,
     required this.onTap,
   });
 
@@ -372,30 +463,26 @@ class _FamilyMemberCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFF3B82F6),
-                    width: 3,
+              Hero(
+                tag: heroTag,
+                child: Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF3B82F6),
+                      width: 3,
+                    ),
                   ),
-                ),
-                child: ClipOval(
-                  child: image.isNotEmpty
-                      ? Image.network(
-                          image,
-                          fit: BoxFit.cover,
-                          errorBuilder: (
-                            context,
-                            error,
-                            stackTrace,
-                          ) {
-                            return _buildDefaultAvatar();
-                          },
-                        )
-                      : _buildDefaultAvatar(),
+                  child: ClipOval(
+                    child: image != null
+                        ? Image.memory(
+                            image!,
+                            fit: BoxFit.cover,
+                          )
+                        : _buildDefaultAvatar(),
+                  ),
                 ),
               ),
 
