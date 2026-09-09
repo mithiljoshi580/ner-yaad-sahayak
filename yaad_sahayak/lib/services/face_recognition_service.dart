@@ -3,301 +3,479 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FaceRecognitionService {
-  static const String _faceKey = 'saved_face_embedding';
-  static const String _familyFacesCacheKey =
-      'family_faces_cache';
+  // ============================================================
+  // FINAL SECURITY THRESHOLD
+  // ============================================================
 
-  // Day 4 confidence threshold
-  static const double confidenceThreshold = 0.75;
+  static const double confidenceThreshold = 0.78;
 
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
-  final FirebaseAuth _auth =
-      FirebaseAuth.instance;
+  static const String _faceKey = 'face_embedding';
 
-  User? get currentUser => _auth.currentUser;
+  static const String _familyFacesCacheKey =
+      'family_faces_cache';
+
+  static const String _familyMembersCacheKey =
+      'family_members_cache';
 
   // ============================================================
-  // SAVE SINGLE LOCAL FACE
+  // CURRENT USER
+  // ============================================================
+
+  User? get currentUser =>
+      FirebaseAuth.instance.currentUser;
+
+  // ============================================================
+  // SAVE FACE LOCALLY
   // ============================================================
 
   Future<void> saveFace(
     List<double> embedding,
   ) async {
-    final prefs =
-        await SharedPreferences.getInstance();
+    try {
+      final prefs =
+          await SharedPreferences.getInstance();
 
-    await prefs.setString(
-      _faceKey,
-      jsonEncode(embedding),
-    );
+      await prefs.setString(
+        _faceKey,
+        jsonEncode(embedding),
+      );
+
+      debugPrint('Face saved locally');
+    } catch (e) {
+      debugPrint('Error saving face: $e');
+    }
   }
 
   // ============================================================
-  // GET SINGLE LOCAL FACE
+  // GET SAVED FACE
   // ============================================================
 
   Future<List<double>?> getSavedFace() async {
-    final prefs =
-        await SharedPreferences.getInstance();
-
-    final data =
-        prefs.getString(_faceKey);
-
-    if (data == null) {
-      return null;
-    }
-
     try {
+      final prefs =
+          await SharedPreferences.getInstance();
+
+      final data =
+          prefs.getString(_faceKey);
+
+      if (data == null || data.isEmpty) {
+        return null;
+      }
+
       final List<dynamic> decoded =
           jsonDecode(data);
 
       return decoded
           .map(
-            (e) => (e as num).toDouble(),
+            (value) =>
+                (value as num).toDouble(),
           )
           .toList();
     } catch (e) {
+      debugPrint(
+        'Error getting saved face: $e',
+      );
+
       return null;
     }
   }
 
   // ============================================================
-  // CALCULATE DISTANCE
+  // EUCLIDEAN DISTANCE
   // ============================================================
 
-  double calculateDistance(
-    List<double> savedEmbedding,
-    List<double> currentEmbedding,
+  double _calculateDistance(
+    List<double> face1,
+    List<double> face2,
   ) {
-    if (savedEmbedding.length !=
-        currentEmbedding.length) {
+    if (face1.length != face2.length) {
       return double.infinity;
     }
 
-    double distance = 0;
+    double sum = 0.0;
 
     for (int i = 0;
-        i < savedEmbedding.length;
+        i < face1.length;
         i++) {
       final difference =
-          savedEmbedding[i] -
-              currentEmbedding[i];
+          face1[i] - face2[i];
 
-      distance +=
+      sum +=
           difference * difference;
     }
 
-    return sqrt(distance);
+    return sqrt(sum);
   }
 
   // ============================================================
-  // CONVERT DISTANCE TO CONFIDENCE
+  // CONFIDENCE
   // ============================================================
 
   double calculateConfidence(
-    double distance,
+    List<double> face1,
+    List<double> face2,
   ) {
-    if (distance == double.infinity) {
+    final distance =
+        _calculateDistance(
+      face1,
+      face2,
+    );
+
+    if (distance ==
+        double.infinity) {
       return 0.0;
     }
 
-    // Distance 0 = 100% confidence
-    // Distance 80 or more = 0% confidence
     final confidence =
-        1.0 - (distance / 80.0);
+        1 - (distance / 80);
 
-    return confidence
-        .clamp(0.0, 1.0);
+    return confidence.clamp(
+      0.0,
+      1.0,
+    );
   }
 
   // ============================================================
-  // SAVE FACE FOR FAMILY MEMBER
+  // VERIFY SAVED FACE
   // ============================================================
 
-  Future<void> saveFaceForFamilyMember(
-    String memberId,
-    List<double> faceEmbedding,
+  Future<bool> recognizeFace(
+    List<double> currentEmbedding,
   ) async {
-    final user =
-        _auth.currentUser;
+    try {
+      final savedEmbedding =
+          await getSavedFace();
 
-    if (user == null) {
-      throw Exception(
-        'User is not logged in',
+      if (savedEmbedding == null) {
+        debugPrint(
+          'No saved face found',
+        );
+
+        return false;
+      }
+
+      final confidence =
+          calculateConfidence(
+        currentEmbedding,
+        savedEmbedding,
+      );
+
+      debugPrint(
+        'Face confidence: '
+        '${confidence.toStringAsFixed(2)}',
+      );
+
+      return confidence >=
+          confidenceThreshold;
+    } catch (e) {
+      debugPrint(
+        'Face recognition error: $e',
+      );
+
+      return false;
+    }
+  }
+
+  // ============================================================
+  // BEST MATCH CONFIDENCE
+  // ============================================================
+
+  Future<double>
+      getBestMatchConfidence(
+    List<double> currentEmbedding,
+  ) async {
+    try {
+      final savedEmbedding =
+          await getSavedFace();
+
+      if (savedEmbedding == null) {
+        return 0.0;
+      }
+
+      return calculateConfidence(
+        currentEmbedding,
+        savedEmbedding,
+      );
+    } catch (e) {
+      debugPrint(
+        'Error calculating confidence: $e',
+      );
+
+      return 0.0;
+    }
+  }
+
+  // ============================================================
+  // SAVE FAMILY MEMBER FACE
+  // ============================================================
+
+  Future<void>
+      saveFaceForFamilyMember(
+    String memberId,
+    List<double> embedding,
+  ) async {
+    try {
+      final user = currentUser;
+
+      if (user == null) {
+        debugPrint(
+          'Cannot save family face: '
+          'user not logged in',
+        );
+
+        return;
+      }
+
+      await _firestore
+          .collection('family_members')
+          .doc(memberId)
+          .set(
+        {
+          'memberId': memberId,
+          'userId': user.uid,
+          'faceEmbedding': embedding,
+          'faceEnrolled': true,
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+        },
+        SetOptions(
+          merge: true,
+        ),
+      );
+
+      debugPrint(
+        'Face saved for family member: '
+        '$memberId',
+      );
+
+      await _cacheFamilyFace(
+        memberId,
+        embedding,
+      );
+
+      // Refresh family-member cache
+      await clearFamilyMembersCache();
+    } catch (e) {
+      debugPrint(
+        'Error saving family member face: $e',
       );
     }
-
-    await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .collection('familyMembers')
-        .doc(memberId)
-        .set(
-      {
-        'faceEmbedding':
-            faceEmbedding,
-        'faceTrainedAt':
-            FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-
-    // Update local cache also
-    await _updateCachedMemberFace(
-      memberId,
-      faceEmbedding,
-    );
   }
 
   // ============================================================
-  // GET ALL SAVED FAMILY FACES
+  // CACHE FAMILY FACE
   // ============================================================
 
-  Future<List<Map<String, dynamic>>>
-      getAllSavedFaces(
-    String uid, {
-    bool useCache = true,
-  }) async {
-    final prefs =
-        await SharedPreferences.getInstance();
+  Future<void> _cacheFamilyFace(
+    String memberId,
+    List<double> embedding,
+  ) async {
+    try {
+      final prefs =
+          await SharedPreferences
+              .getInstance();
 
-    // First try local cache
-    if (useCache) {
-      final cached =
+      Map<String, dynamic> cache = {};
+
+      final existing =
           prefs.getString(
         _familyFacesCacheKey,
       );
 
-      if (cached != null) {
-        try {
-          final List<dynamic> decoded =
-              jsonDecode(cached);
+      if (existing != null &&
+          existing.isNotEmpty) {
+        final decoded =
+            jsonDecode(existing);
 
-          return decoded
-              .map(
-                (e) =>
-                    Map<String, dynamic>.from(e),
-              )
-              .toList();
-        } catch (e) {
-          // If cache is corrupted,
-          // fetch fresh data below.
-        }
-      }
-    }
-
-    // Fetch from Firestore
-    final snapshot =
-        await _firestore
-            .collection('users')
-            .doc(uid)
-            .collection('familyMembers')
-            .get();
-
-    final List<Map<String, dynamic>>
-        members = [];
-
-    for (final doc
-        in snapshot.docs) {
-      final data =
-          doc.data();
-
-      if (data['faceEmbedding'] !=
-          null) {
-        members.add({
-          'memberId': doc.id,
-          ...data,
-        });
-      }
-    }
-
-    // Save fetched data locally
-    await _saveFamilyFacesCache(
-      members,
-    );
-
-    return members;
-  }
-
-  // ============================================================
-  // SAVE FAMILY FACE CACHE
-  // ============================================================
-
-  Future<void> _saveFamilyFacesCache(
-    List<Map<String, dynamic>>
-        members,
-  ) async {
-    final prefs =
-        await SharedPreferences.getInstance();
-
-    await prefs.setString(
-      _familyFacesCacheKey,
-      jsonEncode(members),
-    );
-  }
-
-  // ============================================================
-  // UPDATE ONE MEMBER IN CACHE
-  // ============================================================
-
-  Future<void> _updateCachedMemberFace(
-    String memberId,
-    List<double> embedding,
-  ) async {
-    final prefs =
-        await SharedPreferences.getInstance();
-
-    final cached =
-        prefs.getString(
-      _familyFacesCacheKey,
-    );
-
-    if (cached == null) {
-      return;
-    }
-
-    try {
-      final List<dynamic> decoded =
-          jsonDecode(cached);
-
-      final members =
-          decoded
-              .map(
-                (e) =>
-                    Map<String, dynamic>.from(e),
-              )
-              .toList();
-
-      bool found = false;
-
-      for (final member
-          in members) {
-        if (member['memberId'] ==
-            memberId) {
-          member['faceEmbedding'] =
-              embedding;
-          found = true;
-          break;
+        if (decoded is Map) {
+          cache =
+              Map<String, dynamic>.from(
+            decoded,
+          );
         }
       }
 
-      if (!found) {
-        members.add({
-          'memberId': memberId,
-          'faceEmbedding': embedding,
-        });
-      }
+      cache[memberId] =
+          embedding;
 
-      await _saveFamilyFacesCache(
-        members,
+      await prefs.setString(
+        _familyFacesCacheKey,
+        jsonEncode(cache),
       );
     } catch (e) {
-      // Ignore cache errors.
+      debugPrint(
+        'Error caching family face: $e',
+      );
+    }
+  }
+
+  // ============================================================
+  // GET FAMILY FACES
+  // ============================================================
+
+  Future<Map<String, List<double>>>
+      getFamilyFaces() async {
+    try {
+      final prefs =
+          await SharedPreferences
+              .getInstance();
+
+      final data =
+          prefs.getString(
+        _familyFacesCacheKey,
+      );
+
+      if (data == null ||
+          data.isEmpty) {
+        return {};
+      }
+
+      final decoded =
+          jsonDecode(data);
+
+      if (decoded is! Map) {
+        return {};
+      }
+
+      final Map<String, List<double>>
+          result = {};
+
+      decoded.forEach(
+        (key, value) {
+          if (value is List) {
+            result[key.toString()] =
+                value
+                    .map(
+                      (item) =>
+                          (item as num)
+                              .toDouble(),
+                    )
+                    .toList();
+          }
+        },
+      );
+
+      return result;
+    } catch (e) {
+      debugPrint(
+        'Error getting family faces: $e',
+      );
+
+      return {};
+    }
+  }
+
+  // ============================================================
+  // GET ALL SAVED FAMILY MEMBERS
+  // ============================================================
+
+  Future<List<Map<String, dynamic>>>
+      getAllSavedFaces(
+    String userId, {
+    bool useCache = true,
+  }) async {
+    try {
+      final prefs =
+          await SharedPreferences
+              .getInstance();
+
+      // --------------------------------------------------------
+      // USE CACHE
+      // --------------------------------------------------------
+
+      if (useCache) {
+        final cached =
+            prefs.getString(
+          _familyMembersCacheKey,
+        );
+
+        if (cached != null &&
+            cached.isNotEmpty) {
+          try {
+            final decoded =
+                jsonDecode(cached);
+
+            if (decoded is List) {
+              return decoded
+                  .map(
+                    (item) =>
+                        Map<String, dynamic>.from(
+                      item as Map,
+                    ),
+                  )
+                  .toList();
+            }
+          } catch (e) {
+            debugPrint(
+              'Invalid family cache: $e',
+            );
+          }
+        }
+      }
+
+      // --------------------------------------------------------
+      // FIRESTORE
+      // --------------------------------------------------------
+
+      final snapshot =
+          await _firestore
+              .collection(
+                'family_members',
+              )
+              .where(
+                'userId',
+                isEqualTo: userId,
+              )
+              .get();
+
+      final List<Map<String, dynamic>>
+          members = [];
+
+      for (final doc
+          in snapshot.docs) {
+        final data =
+            Map<String, dynamic>.from(
+          doc.data(),
+        );
+
+        // Make sure memberId exists
+        data['memberId'] ??=
+            doc.id;
+
+        // Keep document ID available
+        data['docId'] = doc.id;
+
+        members.add(data);
+      }
+
+      // --------------------------------------------------------
+      // SAVE CACHE
+      // --------------------------------------------------------
+
+      await prefs.setString(
+        _familyMembersCacheKey,
+        jsonEncode(members),
+      );
+
+      debugPrint(
+        'Loaded ${members.length} '
+        'family members',
+      );
+
+      return members;
+    } catch (e) {
+      debugPrint(
+        'Error getting all saved faces: $e',
+      );
+
+      return [];
     }
   }
 
@@ -305,207 +483,193 @@ class FaceRecognitionService {
   // IDENTIFY FAMILY MEMBER
   // ============================================================
 
-  Future<String?> identifyFamilyMember(
-    List<double> liveEmbedding,
+  Future<String?>
+      identifyFamilyMember(
+    List<double> currentEmbedding,
   ) async {
-    final user =
-        _auth.currentUser;
+    try {
+      final familyFaces =
+          await getFamilyFaces();
 
-    if (user == null ||
-        liveEmbedding.isEmpty) {
+      if (familyFaces.isEmpty) {
+        debugPrint(
+          'No family faces available',
+        );
+
+        return null;
+      }
+
+      String? bestMemberId;
+
+      double bestConfidence = 0.0;
+
+      for (final entry
+          in familyFaces.entries) {
+        final confidence =
+            calculateConfidence(
+          currentEmbedding,
+          entry.value,
+        );
+
+        debugPrint(
+          'Member ${entry.key} '
+          'confidence: '
+          '${confidence.toStringAsFixed(2)}',
+        );
+
+        if (confidence >
+            bestConfidence) {
+          bestConfidence =
+              confidence;
+
+          bestMemberId =
+              entry.key;
+        }
+      }
+
+      if (bestMemberId != null &&
+          bestConfidence >=
+              confidenceThreshold) {
+        debugPrint(
+          'Family member matched: '
+          '$bestMemberId',
+        );
+
+        return bestMemberId;
+      }
+
+      debugPrint(
+        'No family member matched. '
+        'Best confidence: '
+        '${bestConfidence.toStringAsFixed(2)}',
+      );
+
+      return null;
+    } catch (e) {
+      debugPrint(
+        'Family identification error: $e',
+      );
+
       return null;
     }
-
-    // Use local cache for faster matching
-    final members =
-        await getAllSavedFaces(
-      user.uid,
-      useCache: true,
-    );
-
-    double bestConfidence = 0.0;
-    String? matchedMemberId;
-
-    for (final member
-        in members) {
-      final savedData =
-          member['faceEmbedding'];
-
-      if (savedData == null) {
-        continue;
-      }
-
-      final savedEmbedding =
-          (savedData as List)
-              .map(
-                (e) =>
-                    (e as num).toDouble(),
-              )
-              .toList();
-
-      final distance =
-          calculateDistance(
-        savedEmbedding,
-        liveEmbedding,
-      );
-
-      final confidence =
-          calculateConfidence(
-        distance,
-      );
-
-      if (confidence >
-          bestConfidence) {
-        bestConfidence =
-            confidence;
-
-        matchedMemberId =
-            member['memberId'];
-      }
-    }
-
-    // Day 4 requirement:
-    // confidence must be greater than 0.75
-    if (matchedMemberId != null &&
-        bestConfidence >
-            confidenceThreshold) {
-      return matchedMemberId;
-    }
-
-    return null;
   }
 
   // ============================================================
-  // GET MATCH CONFIDENCE
-  // ============================================================
-
-  Future<double> getBestMatchConfidence(
-    List<double> liveEmbedding,
-  ) async {
-    final user =
-        _auth.currentUser;
-
-    if (user == null ||
-        liveEmbedding.isEmpty) {
-      return 0.0;
-    }
-
-    final members =
-        await getAllSavedFaces(
-      user.uid,
-      useCache: true,
-    );
-
-    double bestConfidence = 0.0;
-
-    for (final member
-        in members) {
-      final savedData =
-          member['faceEmbedding'];
-
-      if (savedData == null) {
-        continue;
-      }
-
-      final savedEmbedding =
-          (savedData as List)
-              .map(
-                (e) =>
-                    (e as num).toDouble(),
-              )
-              .toList();
-
-      final distance =
-          calculateDistance(
-        savedEmbedding,
-        liveEmbedding,
-      );
-
-      final confidence =
-          calculateConfidence(
-        distance,
-      );
-
-      if (confidence >
-          bestConfidence) {
-        bestConfidence =
-            confidence;
-      }
-    }
-
-    return bestConfidence;
-  }
-
-  // ============================================================
-  // LIVENESS CHECK - UI PLACEHOLDER
+  // LIVENESS CHECK
   // ============================================================
 
   Future<bool> livenessCheck({
-    bool blinkDetected = false,
-    bool smileDetected = false,
+    required bool blinkDetected,
+    required bool smileDetected,
   }) async {
-    // Day 4 UI-level liveness check.
-    //
-    // Actual blink/smile detection can be connected
-    // later using ML Kit face landmarks/expressions.
-
     return blinkDetected ||
         smileDetected;
   }
 
   // ============================================================
-  // OLD LOCAL FACE RECOGNITION
+  // CLEAR ALL FACE CACHE
   // ============================================================
 
-  Future<bool> recognizeFace(
-    List<double> currentEmbedding,
-  ) async {
-    final savedEmbedding =
-        await getSavedFace();
+  Future<void> clearCache() async {
+    try {
+      final prefs =
+          await SharedPreferences
+              .getInstance();
 
-    if (savedEmbedding == null ||
-        currentEmbedding.isEmpty) {
-      return false;
+      await prefs.remove(
+        _faceKey,
+      );
+
+      await prefs.remove(
+        _familyFacesCacheKey,
+      );
+
+      await prefs.remove(
+        _familyMembersCacheKey,
+      );
+
+      debugPrint(
+        'Face recognition cache cleared',
+      );
+    } catch (e) {
+      debugPrint(
+        'Error clearing face cache: $e',
+      );
     }
-
-    final distance =
-        calculateDistance(
-      savedEmbedding,
-      currentEmbedding,
-    );
-
-    final confidence =
-        calculateConfidence(
-      distance,
-    );
-
-    return confidence >
-        confidenceThreshold;
   }
 
   // ============================================================
-  // CLEAR LOCAL FACE
+  // CLEAR FAMILY MEMBERS CACHE
   // ============================================================
 
-  Future<void> deleteSavedFace() async {
-    final prefs =
-        await SharedPreferences.getInstance();
+  Future<void>
+      clearFamilyMembersCache() async {
+    try {
+      final prefs =
+          await SharedPreferences
+              .getInstance();
 
-    await prefs.remove(
-      _faceKey,
-    );
+      await prefs.remove(
+        _familyMembersCacheKey,
+      );
+
+      debugPrint(
+        'Family members cache cleared',
+      );
+    } catch (e) {
+      debugPrint(
+        'Error clearing family members cache: $e',
+      );
+    }
+  }
+
+  // ============================================================
+  // DELETE SAVED FACE
+  // ============================================================
+
+  Future<void>
+      deleteSavedFace() async {
+    try {
+      final prefs =
+          await SharedPreferences
+              .getInstance();
+
+      await prefs.remove(
+        _faceKey,
+      );
+
+      debugPrint(
+        'Saved face deleted',
+      );
+    } catch (e) {
+      debugPrint(
+        'Error deleting saved face: $e',
+      );
+    }
   }
 
   // ============================================================
   // CLEAR FAMILY FACE CACHE
   // ============================================================
 
-  Future<void> clearFamilyFaceCache() async {
-    final prefs =
-        await SharedPreferences.getInstance();
+  Future<void>
+      clearFamilyFacesCache() async {
+    try {
+      final prefs =
+          await SharedPreferences
+              .getInstance();
 
-    await prefs.remove(
-      _familyFacesCacheKey,
-    );
+      await prefs.remove(
+        _familyFacesCacheKey,
+      );
+
+      debugPrint(
+        'Family face cache cleared',
+      );
+    } catch (e) {
+      debugPrint(
+        'Error clearing family face cache: $e',
+      );
+    }
   }
 }

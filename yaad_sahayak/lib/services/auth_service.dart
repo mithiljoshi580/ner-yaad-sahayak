@@ -2,10 +2,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
+import 'face_recognition_service.dart';
+
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // ================= SIGN UP =================
   Future<User?> signUp(
     String email,
     String password,
@@ -28,8 +31,7 @@ class AuthService {
           'name': name,
           'email': email,
           'uid': user.uid,
-          'createdAt':
-              FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
         });
       }
 
@@ -40,6 +42,7 @@ class AuthService {
     }
   }
 
+  // ================= SIGN IN =================
   Future<User?> signIn(
     String email,
     String password,
@@ -58,7 +61,22 @@ class AuthService {
     }
   }
 
+  // ================= SIGN OUT =================
   Future<void> signOut() async {
-    await _auth.signOut();
+    try {
+      // Clear locally cached face recognition data
+      final faceService = FaceRecognitionService();
+
+      await faceService.clearCache();
+
+      // Sign out Firebase user
+      await _auth.signOut();
+
+      debugPrint(
+        'User logged out and face cache cleared',
+      );
+    } catch (e) {
+      debugPrint('Sign out error: $e');
+    }
   }
 }
